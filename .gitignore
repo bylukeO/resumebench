@@ -1,2 +1,3 @@
 # The API key lives here. Never commit it.
 .env
+CLAUDE.md

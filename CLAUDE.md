@@ -4,6 +4,7 @@ A personal, single-file resume workbench. One master profile, tailored per job p
 
 Built for one user (the repo owner). No accounts, no multi-tenancy, no backend. Do not add any.
 
+
 ---
 
 ## Current state
