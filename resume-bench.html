@@ -1,0 +1,872 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#141C25; --ink-2:#4C5C6B; --ink-3:#8A98A5;
+    --mat:#D7DEE4; --mat-line:#CAD3DA; --panel:#F1F5F7; --paper:#fff;
+    --mark:#FFD84D; --gap:#BE443A; --ok:#2E6B58; --edge:#B4C0CA;
+    --display:'Space Grotesk',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+    --doc:Georgia,'Times New Roman',serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    font-family:var(--display); color:var(--ink); background:var(--mat);
+    background-image:linear-gradient(var(--mat-line) 1px,transparent 1px),linear-gradient(90deg,var(--mat-line) 1px,transparent 1px);
+    background-size:28px 28px;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,textarea,select{font:inherit;color:inherit}
+  ::selection{background:var(--mark)}
+
+  /* ---------- shell ---------- */
+  .app{display:flex;flex-direction:column;height:100vh}
+  .bar{
+    display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+    padding:12px 20px;border-bottom:2px solid var(--ink);background:var(--panel);
+  }
+  .wordmark{font-weight:700;font-size:15px;letter-spacing:-.02em;white-space:nowrap}
+  .wordmark em{font-style:normal;background:var(--mark);padding:0 5px}
+  .modes{display:flex;gap:2px;margin-right:auto;flex-wrap:wrap}
+  .modes button{
+    font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    background:transparent;border:1px solid transparent;border-bottom:none;
+    padding:8px 13px 9px;cursor:pointer;color:var(--ink-2);border-radius:3px 3px 0 0;
+    margin-bottom:-13px;
+  }
+  .modes button:hover{color:var(--ink);background:#e6ecf0}
+  .modes button[aria-selected="true"]{background:var(--paper);border-color:var(--ink);color:var(--ink);font-weight:600}
+  .bar .right{display:flex;align-items:center;gap:8px}
+  .saved{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
+
+  .btn{
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    background:var(--paper);border:1.5px solid var(--ink);padding:8px 13px;cursor:pointer;border-radius:3px;
+  }
+  .btn:hover{background:var(--mark)}
+  .btn:active{transform:translateY(1px)}
+  .btn.solid{background:var(--ink);color:#fff}
+  .btn.solid:hover{background:#000}
+  .btn.ghost{border-color:var(--edge);color:var(--ink-2);background:transparent}
+  .btn.ghost:hover{border-color:var(--ink);color:var(--ink);background:transparent}
+  .btn.sm{padding:5px 9px;font-size:10px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn:focus-visible,input:focus-visible,textarea:focus-visible,.modes button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+  .split{display:grid;grid-template-columns:minmax(340px,1fr) minmax(420px,1.15fr);flex:1;min-height:0}
+  .tools{overflow-y:auto;padding:22px;border-right:2px solid var(--ink)}
+  .stage{overflow-y:auto;padding:26px 22px 60px;display:flex;flex-direction:column;align-items:center;gap:14px}
+
+  /* ---------- panels ---------- */
+  .panel{background:var(--paper);border:1.5px solid var(--edge);border-radius:4px;padding:16px;margin-bottom:14px}
+  .panel > h3{
+    margin:0 0 4px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+  }
+  .hint{font-size:12.5px;line-height:1.5;color:var(--ink-2);margin:0 0 12px}
+  .hint b{color:var(--ink);font-weight:500}
+  label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:10px 0 4px}
+  input[type=text],textarea{
+    width:100%;background:#FAFCFD;border:1.5px solid var(--edge);border-radius:3px;padding:8px 9px;font-size:13.5px;font-family:var(--display);
+  }
+  textarea{resize:vertical;line-height:1.55}
+  input:focus,textarea:focus{border-color:var(--ink);background:#fff}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+  .role{border:1.5px solid var(--edge);border-radius:4px;padding:13px;margin-bottom:11px;background:var(--paper)}
+  .role-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
+  .role-head .n{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em}
+  .empty{border:1.5px dashed var(--edge);border-radius:4px;padding:22px 16px;text-align:center;font-size:13px;color:var(--ink-2);line-height:1.6}
+
+  /* ---------- keyword chips ---------- */
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{font-family:var(--mono);font-size:11px;padding:4px 8px;border-radius:3px;border:1px solid var(--edge);background:#fff}
+  .chip.hit{border-color:var(--ok);color:var(--ok)}
+  .chip.hit::before{content:"✓ ";}
+  .chip.miss{border-color:var(--gap);color:var(--gap);text-decoration:underline wavy var(--gap);text-underline-offset:3px}
+
+  /* ---------- score ---------- */
+  .score-num{font-size:56px;font-weight:700;letter-spacing:-.04em;line-height:1}
+  .score-num small{font-family:var(--mono);font-size:13px;font-weight:400;color:var(--ink-3);letter-spacing:0}
+  .meter{height:7px;background:#E7EDF1;border-radius:99px;overflow:hidden;margin:5px 0 2px}
+  .meter i{display:block;height:100%;background:var(--ink)}
+  .brk{margin:12px 0}
+  .brk-row{margin-bottom:11px}
+  .brk-row .t{display:flex;justify-content:space-between;font-size:12.5px}
+  .brk-row .t span:last-child{font-family:var(--mono);color:var(--ink-2)}
+  .brk-row .note{font-size:12px;color:var(--ink-2);margin-top:3px;line-height:1.45}
+  ul.fixes{margin:8px 0 0;padding-left:18px}
+  ul.fixes li{font-size:13px;line-height:1.55;margin-bottom:7px}
+
+  /* ---------- variants ---------- */
+  .variant{border:1.5px solid var(--edge);border-radius:4px;padding:11px 12px;margin-bottom:9px;font-size:13.5px;line-height:1.55}
+  .variant:hover{border-color:var(--ink)}
+  .variant .acts{display:flex;gap:6px;margin-top:9px;align-items:center}
+
+  /* ---------- the paper ---------- */
+  .sheet-head{
+    width:100%;max-width:720px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  }
+  .paper{
+    width:100%;max-width:720px;background:var(--paper);border:1px solid #C9D3DA;
+    box-shadow:0 1px 2px rgba(20,28,37,.10),0 12px 30px -12px rgba(20,28,37,.30);
+    padding:54px 58px 64px;font-family:var(--doc);color:#111;font-size:13.4px;line-height:1.45;
+  }
+  .paper h1{font-size:23px;margin:0 0 3px;letter-spacing:.01em;font-weight:700}
+  .paper .contact{font-size:12.2px;color:#333;margin-bottom:19px}
+  .paper h2{
+    font-size:12.4px;text-transform:uppercase;letter-spacing:.09em;margin:20px 0 7px;
+    border-bottom:1px solid #999;padding-bottom:3px;font-weight:700;
+  }
+  .paper .job{margin-bottom:14px}
+  .paper .job .l1{display:flex;justify-content:space-between;gap:14px;font-weight:700}
+  .paper .job .l2{display:flex;justify-content:space-between;gap:14px;font-style:italic;color:#333;margin-bottom:4px}
+  .paper ul{margin:3px 0 0;padding-left:17px}
+  .paper li{margin-bottom:3px}
+  .paper .skill-line{margin-bottom:3px}
+  .paper .placeholder{color:#9aa;font-style:italic}
+
+  .hl{
+    background:linear-gradient(100deg,rgba(255,216,77,0) 0%,rgba(255,216,77,.9) 3.5%,rgba(255,216,77,.72) 96.5%,rgba(255,216,77,0) 100%);
+    padding:0 .12em;border-radius:.18em;-webkit-box-decoration-break:clone;box-decoration-break:clone;
+  }
+
+  /* ---------- parser check ---------- */
+  .check{width:100%;max-width:720px;background:var(--panel);border:1.5px solid var(--edge);border-radius:4px;padding:13px 15px}
+  .check h4{margin:0 0 8px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+  .check ul{margin:0;padding-left:16px}
+  .check li{font-size:12.5px;line-height:1.5;margin-bottom:5px;color:var(--ink-2)}
+  .check li.warn{color:var(--gap)}
+  .check li.pass{color:var(--ok)}
+
+  .banner{font-family:var(--mono);font-size:11px;padding:8px 11px;border-radius:3px;margin-bottom:12px;line-height:1.5}
+  .banner.err{background:#FBEAE8;border:1px solid var(--gap);color:#8C2F27}
+  .banner.busy{background:#FFF6D6;border:1px solid #E0C24A;color:#6B5309}
+  .spin{display:inline-block;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spin{animation:none}}
+
+  .stack{display:none}
+  @media (max-width:900px){
+    .split{grid-template-columns:1fr}
+    .tools{border-right:none;border-bottom:2px solid var(--ink)}
+    .tools[data-hide="1"],.stage[data-hide="1"]{display:none}
+    .stack{display:inline-block}
+    .paper{padding:34px 26px 44px}
+  }
+
+  @media print{
+    body{background:#fff;background-image:none}
+    .bar,.tools,.sheet-head,.check{display:none!important}
+    .split{display:block}
+    .stage{padding:0;display:block;overflow:visible}
+    .paper{max-width:none;border:none;box-shadow:none;padding:0;font-size:11pt}
+    .hl{background:none!important;padding:0}
+    @page{margin:0.6in}
+  }
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="wordmark">resume<em>bench</em></div>
+    <nav class="modes" role="tablist">
+      <button role="tab" data-mode="profile" aria-selected="true">Profile</button>
+      <button role="tab" data-mode="bullets" aria-selected="false">Bullets</button>
+      <button role="tab" data-mode="tailor" aria-selected="false">Tailor</button>
+      <button role="tab" data-mode="score" aria-selected="false">Score</button>
+    </nav>
+    <div class="right">
+      <span class="saved" id="saved"></span>
+      <button class="btn ghost sm stack" id="flip">View resume</button>
+      <button class="btn ghost sm" id="copyTxt">Copy plain text</button>
+      <button class="btn solid sm" id="print">Save as PDF</button>
+    </div>
+  </header>
+
+  <main class="split">
+    <section class="tools" id="tools"></section>
+    <section class="stage" id="stage" data-hide="0">
+      <div class="sheet-head">
+        <span id="sheetLabel">Master resume</span>
+        <span id="sheetToggle"></span>
+      </div>
+      <div class="paper" id="paper"></div>
+      <div class="check" id="check"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ============================ state ============================ */
+const BLANK = {
+  contact:{name:"",title:"",email:"",phone:"",location:"",links:""},
+  summary:"",
+  experience:[],
+  educationRaw:"",
+  skillsRaw:"",
+  projectsRaw:""
+};
+let S = {
+  profile: JSON.parse(JSON.stringify(BLANK)),
+  jd:"", mode:"profile",
+  keywords:[], tailored:null, showTailored:true,
+  score:null, variants:null, questions:null,
+  busy:"", error:""
+};
+const uid = () => Math.random().toString(36).slice(2,8);
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const lines = s => String(s??"").split("\n").map(x=>x.trim()).filter(Boolean);
+
+/* ============================ storage ============================ */
+const KEY_PROFILE = "bench:profile";
+const KEY_JD = "bench:jd";
+const SAVE_DEBOUNCE_MS = 600;
+
+/* window.storage only exists inside a claude.ai artifact; localStorage is the local path. */
+const store = {
+  async get(k){
+    if(window.storage) return (await window.storage.get(k))?.value ?? null;
+    return localStorage.getItem(k);
+  },
+  async set(k,v){
+    if(window.storage) return window.storage.set(k,v);
+    localStorage.setItem(k,v);
+  }
+};
+
+let saveTimer;
+async function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{
+      await store.set(KEY_PROFILE, JSON.stringify(S.profile));
+      await store.set(KEY_JD, S.jd);
+      flash("Saved");
+    }catch(e){
+      console.error("resumebench: save failed", e);
+      flash("Not saved — storage is blocked or full");
+    }
+  }, SAVE_DEBOUNCE_MS);
+}
+function flash(t){ const el=document.getElementById("saved"); el.textContent=t; setTimeout(()=>{if(el.textContent===t)el.textContent="";},2200); }
+async function load(){
+  try{
+    const raw = await store.get(KEY_PROFILE);
+    if(raw) S.profile = {...BLANK, ...JSON.parse(raw)};
+  }catch(e){
+    console.error("resumebench: could not read the saved profile", e);
+    S.error = "Couldn't read the saved profile, so this started empty. Details are in the browser console.";
+  }
+  try{
+    const raw = await store.get(KEY_JD);
+    if(raw) S.jd = raw;
+  }catch(e){
+    console.error("resumebench: could not read the saved posting", e);
+  }
+}
+
+/* ============================ model ============================ */
+const RULES = `Hard rules:
+- Never invent, inflate, or estimate a metric, title, date, tool, or outcome that is not present in the source material. If a number is missing, write the bullet without one.
+- Keep every claim defensible in an interview.
+- Plain text only: no markdown, no emoji, no special glyphs.`;
+
+/* The local proxy in proxy.mjs holds the API key, so it never enters this page. */
+const API_ENDPOINT = "http://localhost:8787/v1beta/interactions";
+const MODEL = "gemini-3.6-flash";
+
+/* The free tier's limits are per-account and unpublished, so pace by reacting
+   to 429s rather than guessing an interval. A tailor run fires one call per
+   role back to back, which is where a limit gets hit. */
+const RETRY_STATUSES = [429, 500, 503];
+const MAX_ATTEMPTS = 4;
+const BACKOFF_MS = 2000;
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* Google sometimes wraps a payload in a single-element array — its error
+   responses do. Unwrap before reading either shape. */
+const unwrap = d => Array.isArray(d) ? d[0] : d;
+
+async function apiError(res){
+  const body = await res.text().catch(()=>"");
+  let err = {};
+  try{ err = unwrap(JSON.parse(body))?.error ?? {}; }catch(e){}
+  const reason = err.details?.find(d=>d.reason)?.reason || err.status || "";
+
+  if(reason==="API_KEY_INVALID" || res.status===401 || res.status===403)
+    return "Google rejected the API key. Check GEMINI_API_KEY in .env, then restart the proxy.";
+  if(res.status===429)
+    return "Rate limited by the free tier, and the retries didn't clear it. Wait a minute, then run it again.";
+  const detail = err.message || body.slice(0,200);
+  return `Model returned ${res.status}.${detail?" "+detail:""}`;
+}
+
+/* The answer lives in `steps`, in the entries typed `model_output`. Two traps,
+   both verified against live responses:
+     - `output_text` is an SDK convenience property and is NOT in the REST
+       payload. Kept below only as a fallback if that ever changes.
+     - a `thought` step (reasoning, no content) sits before the answer, and
+       `user_input` may echo the prompt. Filtering to model turns is what stops
+       either from being concatenated onto the answer and breaking the parse. */
+const MODEL_STEP_TYPES = ["model_output", "model_response"];
+
+function readText(payload){
+  const data = unwrap(payload) ?? {};
+  if(typeof data.output_text === "string" && data.output_text) return data.output_text;
+  return (data.steps||[])
+    .filter(s=>MODEL_STEP_TYPES.includes(s.type))
+    .flatMap(s=>s.content||[])
+    .filter(b=>b.type==="text")
+    .map(b=>b.text).join("\n");
+}
+
+async function ask(prompt, {json=false}={}){
+  const body = JSON.stringify({
+    model: MODEL,
+    input: prompt,
+    ...(json ? {response_format:{type:"text", mime_type:"application/json"}} : {})
+  });
+
+  for(let attempt=1; ; attempt++){
+    let res;
+    try{
+      res = await fetch(API_ENDPOINT,{ method:"POST", headers:{"Content-Type":"application/json"}, body });
+    }catch(e){
+      console.error("resumebench: proxy unreachable", e);
+      throw new Error("Can't reach the local proxy. Start it with: node proxy.mjs");
+    }
+    if(res.ok) return readText(await res.json());
+
+    if(RETRY_STATUSES.includes(res.status) && attempt < MAX_ATTEMPTS){
+      const header = Number(res.headers.get("Retry-After"));
+      const wait = Number.isFinite(header) && header > 0 ? header*1000 : BACKOFF_MS * 2**(attempt-1);
+      const resume = S.busy;
+      S.busy = `Rate limited — retrying in ${Math.round(wait/1000)}s…`; render();
+      await sleep(wait);
+      S.busy = resume;
+      continue;
+    }
+    throw new Error(await apiError(res));
+  }
+}
+async function askJSON(prompt){
+  const raw = await ask(prompt + "\n\nRespond with JSON only. No preamble, no code fences.", {json:true});
+  const clean = raw.replace(/```json/g,"").replace(/```/g,"").trim();
+  const start = Math.min(...[clean.indexOf("{"),clean.indexOf("[")].filter(i=>i>=0));
+  return JSON.parse(clean.slice(isFinite(start)?start:0));
+}
+async function run(label, fn){
+  S.busy = label; S.error=""; render();
+  try{ await fn(); }
+  catch(e){ S.error = e instanceof SyntaxError ? "The model returned something unreadable. Run it again." : e.message; }
+  S.busy=""; render();
+}
+
+/* ============================ resume text ============================ */
+function activeExperience(){
+  return S.profile.experience.map(r=>{
+    const t = S.tailored && S.showTailored && S.tailored.bullets[r.id];
+    return {...r, bullets: t ? t : lines(r.bullets)};
+  });
+}
+function activeSummary(){
+  return (S.tailored && S.showTailored && S.tailored.summary) || S.profile.summary;
+}
+function plainText(){
+  const p=S.profile, c=p.contact, out=[];
+  out.push(c.name||"Your Name");
+  if(c.title) out.push(c.title);
+  out.push([c.email,c.phone,c.location,c.links].filter(Boolean).join(" | "));
+  const sum = activeSummary();
+  if(sum){ out.push("","SUMMARY",sum); }
+  const exp = activeExperience();
+  if(exp.length){
+    out.push("","EXPERIENCE");
+    exp.forEach(r=>{
+      out.push("", `${r.role||"Role"}, ${r.company||"Company"}`);
+      out.push([[r.start,r.end].filter(Boolean).join(" - "), r.location].filter(Boolean).join(" | "));
+      r.bullets.forEach(b=>out.push("- "+b));
+    });
+  }
+  if(lines(p.projectsRaw).length){
+    out.push("","PROJECTS");
+    lines(p.projectsRaw).forEach(l=>out.push("- "+l.split("|").map(x=>x.trim()).filter(Boolean).join(" — ")));
+  }
+  if(lines(p.educationRaw).length){
+    out.push("","EDUCATION");
+    lines(p.educationRaw).forEach(l=>out.push(l.split("|").map(x=>x.trim()).filter(Boolean).join(" — ")));
+  }
+  if(lines(p.skillsRaw).length){
+    out.push("","SKILLS");
+    lines(p.skillsRaw).forEach(l=>out.push(l));
+  }
+  return out.join("\n");
+}
+
+/* keyword highlighting: escape first, then mark */
+function mark(text){
+  let out = esc(text);
+  if(!(S.tailored && S.showTailored) || !S.keywords.length) return out;
+  const terms = S.keywords.map(k=>k.term).filter(t=>t&&t.length>2)
+    .sort((a,b)=>b.length-a.length)
+    .map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+  if(!terms.length) return out;
+  try{
+    out = out.replace(new RegExp("(?<![\\w-])("+terms.join("|")+")(?![\\w-])","gi"), '<span class="hl">$1</span>');
+  }catch(e){
+    out = out.replace(new RegExp("\\b("+terms.join("|")+")\\b","gi"), '<span class="hl">$1</span>');
+  }
+  return out;
+}
+
+function renderPaper(){
+  const p=S.profile, c=p.contact, h=[];
+  h.push(`<h1>${esc(c.name)||'<span class="placeholder">Your name</span>'}</h1>`);
+  const line = [c.email,c.phone,c.location,c.links].filter(Boolean).join(" &nbsp;|&nbsp; ");
+  h.push(`<div class="contact">${line||'<span class="placeholder">email · phone · city · linkedin</span>'}</div>`);
+
+  const sum = activeSummary();
+  if(sum) h.push(`<h2>Summary</h2><div>${mark(sum)}</div>`);
+
+  const exp = activeExperience();
+  if(exp.length){
+    h.push(`<h2>Experience</h2>`);
+    exp.forEach(r=>{
+      h.push(`<div class="job">
+        <div class="l1"><span>${mark(r.role)||"Role"}</span><span>${esc([r.start,r.end].filter(Boolean).join(" – "))}</span></div>
+        <div class="l2"><span>${esc(r.company)}</span><span>${esc(r.location)}</span></div>
+        ${r.bullets.length?`<ul>${r.bullets.map(b=>`<li>${mark(b)}</li>`).join("")}</ul>`:""}
+      </div>`);
+    });
+  }
+  const proj = lines(p.projectsRaw);
+  if(proj.length){
+    h.push(`<h2>Projects</h2><ul>${proj.map(l=>`<li>${mark(l.split("|").map(x=>x.trim()).filter(Boolean).join(" — "))}</li>`).join("")}</ul>`);
+  }
+  const edu = lines(p.educationRaw);
+  if(edu.length){
+    h.push(`<h2>Education</h2>${edu.map(l=>`<div class="skill-line">${mark(l.split("|").map(x=>x.trim()).filter(Boolean).join(" — "))}</div>`).join("")}`);
+  }
+  const sk = lines(p.skillsRaw);
+  if(sk.length){
+    h.push(`<h2>Skills</h2>${sk.map(l=>`<div class="skill-line">${mark(l)}</div>`).join("")}`);
+  }
+  if(!exp.length && !sk.length && !edu.length && !c.name){
+    h.push(`<div class="placeholder" style="margin-top:24px">Nothing here yet. Fill in the profile on the left, or paste an old resume to import it.</div>`);
+  }
+  document.getElementById("paper").innerHTML = h.join("");
+}
+
+/* ============================ parser check (no API) ============================ */
+const WEAK = ["responsible for","worked on","helped with","assisted with","involved in","duties included","tasked with"];
+function parserCheck(){
+  const p=S.profile, c=p.contact, out=[];
+  const exp = activeExperience();
+  const allB = exp.flatMap(r=>r.bullets);
+
+  if(!c.email) out.push([1,"No email address — many parsers key the whole record off it."]);
+  if(!c.phone) out.push([1,"No phone number."]);
+  exp.forEach(r=>{ if(!r.start||!r.end) out.push([1,`${r.company||"A role"} is missing a date — use MM/YYYY or "Present".`]); });
+
+  const long = allB.filter(b=>b.length>230).length;
+  if(long) out.push([1,`${long} bullet${long>1?"s run":" runs"} past two lines. Cut to one idea each.`]);
+
+  const noNum = allB.filter(b=>!/\d/.test(b)).length;
+  if(allB.length && noNum/allB.length > .6) out.push([1,`${noNum} of ${allB.length} bullets have no number in them. Scope or result, pick one.`]);
+
+  const weak = allB.filter(b=>WEAK.some(w=>b.toLowerCase().includes(w)));
+  if(weak.length) out.push([1,`${weak.length} bullet${weak.length>1?"s open":" opens"} with a passive phrase ("responsible for", "helped with").`]);
+
+  if(!lines(p.skillsRaw).length) out.push([1,"No skills section — this is where keyword matching usually happens."]);
+
+  const words = plainText().split(/\s+/).filter(Boolean).length;
+  if(words > 800) out.push([1,`${words} words. Over roughly 800 you're on page three.`]);
+
+  if(!out.length) out.push([0,"Clean. Standard headings, dated roles, quantified bullets, real text."]);
+  const html = out.map(([w,t])=>`<li class="${w?"warn":"pass"}">${esc(t)}</li>`).join("");
+  document.getElementById("check").innerHTML = `<h4>Parser check · runs locally</h4><ul>${html}</ul>`;
+}
+
+/* ============================ panels ============================ */
+function banner(){
+  if(S.error) return `<div class="banner err">${esc(S.error)}</div>`;
+  if(S.busy) return `<div class="banner busy"><span class="spin">◐</span> ${esc(S.busy)}</div>`;
+  return "";
+}
+
+function panelProfile(){
+  const p=S.profile, c=p.contact;
+  const roles = p.experience.map((r,i)=>`
+    <div class="role">
+      <div class="role-head">
+        <span class="n">ROLE ${String(i+1).padStart(2,"0")}</span>
+        <span>
+          ${i>0?`<button class="btn ghost sm" data-act="up" data-id="${r.id}">↑</button>`:""}
+          <button class="btn ghost sm" data-act="del" data-id="${r.id}">Remove</button>
+        </span>
+      </div>
+      <div class="row">
+        <div><label>Title</label><input type="text" data-f="role" data-id="${r.id}" value="${esc(r.role)}"></div>
+        <div><label>Company</label><input type="text" data-f="company" data-id="${r.id}" value="${esc(r.company)}"></div>
+      </div>
+      <div class="row-3">
+        <div><label>Start</label><input type="text" data-f="start" data-id="${r.id}" value="${esc(r.start)}" placeholder="03/2022"></div>
+        <div><label>End</label><input type="text" data-f="end" data-id="${r.id}" value="${esc(r.end)}" placeholder="Present"></div>
+        <div><label>Location</label><input type="text" data-f="location" data-id="${r.id}" value="${esc(r.location)}"></div>
+      </div>
+      <label>Bullets — one per line</label>
+      <textarea rows="5" data-f="bullets" data-id="${r.id}" placeholder="Rebuilt the checkout flow, cutting drop-off from 31% to 19% across 40k monthly sessions.">${esc(r.bullets)}</textarea>
+    </div>`).join("");
+
+  return `
+  ${banner()}
+  <div class="panel">
+    <h3>Import</h3>
+    <p class="hint">Paste an old resume or loose career notes. It comes back structured — nothing invented, only what's in the text.</p>
+    <textarea id="importText" rows="5" placeholder="Paste here…"></textarea>
+    <div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn" id="doImport">Import into profile</button>
+      <button class="btn ghost" id="doGaps">Ask me what's missing</button>
+    </div>
+    ${S.questions?`<div style="margin-top:12px"><label>Answer these, then add the detail above</label><ul class="fixes">${S.questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:""}
+  </div>
+
+  <div class="panel">
+    <h3>Contact</h3>
+    <div class="row">
+      <div><label>Name</label><input type="text" data-c="name" value="${esc(c.name)}"></div>
+      <div><label>Headline</label><input type="text" data-c="title" value="${esc(c.title)}" placeholder="Backend Engineer"></div>
+    </div>
+    <div class="row">
+      <div><label>Email</label><input type="text" data-c="email" value="${esc(c.email)}"></div>
+      <div><label>Phone</label><input type="text" data-c="phone" value="${esc(c.phone)}"></div>
+    </div>
+    <div class="row">
+      <div><label>Location</label><input type="text" data-c="location" value="${esc(c.location)}" placeholder="Berlin, DE"></div>
+      <div><label>Links</label><input type="text" data-c="links" value="${esc(c.links)}" placeholder="linkedin.com/in/you"></div>
+    </div>
+    <label>Summary — optional, three lines at most</label>
+    <textarea rows="3" data-p="summary">${esc(p.summary)}</textarea>
+  </div>
+
+  <div class="panel">
+    <h3>Experience</h3>
+    ${roles || `<div class="empty">No roles yet.<br>Add one below, or paste an old resume above.</div>`}
+    <button class="btn" id="addRole" style="margin-top:10px">Add a role</button>
+  </div>
+
+  <div class="panel">
+    <h3>Skills</h3>
+    <p class="hint">One group per line, as <b>Category: item, item, item</b>. Groups parse cleanly and read fast.</p>
+    <textarea rows="4" data-p="skillsRaw" placeholder="Languages: Python, Go, TypeScript
+Infrastructure: AWS, Terraform, Kubernetes">${esc(p.skillsRaw)}</textarea>
+  </div>
+
+  <div class="panel">
+    <h3>Education &amp; projects</h3>
+    <label>Education — one per line, parts split by |</label>
+    <textarea rows="3" data-p="educationRaw" placeholder="TU Berlin | BSc Computer Science | 2019">${esc(p.educationRaw)}</textarea>
+    <label>Projects — one per line, parts split by |</label>
+    <textarea rows="3" data-p="projectsRaw" placeholder="Ledger | Double-entry bookkeeping library, 900 stars | github.com/you/ledger">${esc(p.projectsRaw)}</textarea>
+  </div>`;
+}
+
+function panelBullets(){
+  const roleOpts = S.profile.experience.map(r=>`<option value="${r.id}">${esc(r.role||"Untitled")} — ${esc(r.company)}</option>`).join("");
+  return `
+  ${banner()}
+  <div class="panel">
+    <h3>Write a bullet</h3>
+    <p class="hint">Describe what you did in plain language — messy is fine. You get three shapes of the same truth, plus the questions worth answering before you use one.</p>
+    <label>What happened</label>
+    <textarea id="notes" rows="4" placeholder="I noticed our onboarding emails were going to spam so I set up DMARC and rewrote the templates, signups that activated went up a lot">${esc(S.notesDraft||"")}</textarea>
+    <label>Target role — optional, shapes the emphasis</label>
+    <input type="text" id="targetRole" placeholder="Lifecycle Marketing Manager">
+    <button class="btn" id="doBullets" style="margin-top:10px">Write three versions</button>
+  </div>
+  ${S.variants?`
+  <div class="panel">
+    <h3>Versions</h3>
+    ${S.variants.bullets.map((b,i)=>`
+      <div class="variant">${esc(b)}
+        <div class="acts">
+          ${S.profile.experience.length?`<select data-vsel="${i}" style="font-size:11px;padding:4px;border:1.5px solid var(--edge);border-radius:3px;max-width:190px">${roleOpts}</select>
+          <button class="btn sm" data-act="addBullet" data-i="${i}">Add to role</button>`:`<span class="hint" style="margin:0">Add a role in Profile to file this.</span>`}
+          <button class="btn ghost sm" data-act="copyBullet" data-i="${i}">Copy</button>
+        </div>
+      </div>`).join("")}
+    ${S.variants.questions&&S.variants.questions.length?`
+      <label style="margin-top:14px">Answer these and rerun — that's where the numbers come from</label>
+      <ul class="fixes">${S.variants.questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
+  </div>`:""}`;
+}
+
+function panelTailor(){
+  const hits = S.keywords.filter(k=>k.hit), miss = S.keywords.filter(k=>!k.hit);
+  return `
+  ${banner()}
+  <div class="panel">
+    <h3>Job posting</h3>
+    <p class="hint">Paste the posting. Bullets get reselected and rephrased per role against it — <b>your master profile stays untouched.</b></p>
+    <textarea id="jd" rows="9" placeholder="Paste the full posting, requirements included…">${esc(S.jd)}</textarea>
+    <div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn solid" id="doTailor">Tailor to this posting</button>
+      ${S.tailored?`<button class="btn ghost" id="clearTailor">Back to master</button>`:""}
+    </div>
+  </div>
+  ${S.keywords.length?`
+  <div class="panel">
+    <h3>Keywords</h3>
+    <p class="hint">Highlighted on the page where they land. The underlined ones aren't in your resume — add them only where they're true.</p>
+    ${hits.length?`<label>Present</label><div class="chips">${hits.map(k=>`<span class="chip hit">${esc(k.term)}</span>`).join("")}</div>`:""}
+    ${miss.length?`<label>Missing</label><div class="chips">${miss.map(k=>`<span class="chip miss">${esc(k.term)}</span>`).join("")}</div>`:""}
+  </div>`:""}`;
+}
+
+function panelScore(){
+  const s=S.score;
+  return `
+  ${banner()}
+  <div class="panel">
+    <h3>Score against a posting</h3>
+    <p class="hint">Grades whatever is currently on the page. Paste the posting in <b>Tailor</b> first, or drop it here.</p>
+    <textarea id="jd2" rows="5" placeholder="Paste the posting…">${esc(S.jd)}</textarea>
+    <button class="btn solid" id="doScore" style="margin-top:9px">Score it</button>
+  </div>
+  ${s?`
+  <div class="panel">
+    <h3>Result</h3>
+    <div class="score-num">${s.score}<small> / 100</small></div>
+    <div class="brk">
+      ${(s.breakdown||[]).map(b=>`
+        <div class="brk-row">
+          <div class="t"><span>${esc(b.label)}</span><span>${b.score}</span></div>
+          <div class="meter"><i style="width:${Math.max(0,Math.min(100,b.score))}%"></i></div>
+          <div class="note">${esc(b.note||"")}</div>
+        </div>`).join("")}
+    </div>
+    ${(s.fixes||[]).length?`<label>Fix these first</label><ul class="fixes">${s.fixes.map(f=>`<li>${esc(f)}</li>`).join("")}</ul>`:""}
+  </div>`:""}`;
+}
+
+/* ============================ render ============================ */
+function render(){
+  document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-selected", b.dataset.mode===S.mode));
+  const t = document.getElementById("tools");
+  t.innerHTML = {profile:panelProfile,bullets:panelBullets,tailor:panelTailor,score:panelScore}[S.mode]();
+  renderPaper();
+  parserCheck();
+  document.getElementById("sheetLabel").textContent =
+    (S.tailored && S.showTailored) ? "Tailored to posting" : "Master resume";
+  document.getElementById("sheetToggle").innerHTML = S.tailored
+    ? `<button class="btn ghost sm" id="toggleV">${S.showTailored?"Show master":"Show tailored"}</button>` : "";
+  const tv = document.getElementById("toggleV");
+  if(tv) tv.onclick = ()=>{ S.showTailored=!S.showTailored; render(); };
+}
+
+/* ============================ events ============================ */
+document.querySelectorAll(".modes button").forEach(b=>{
+  b.onclick = ()=>{ S.mode=b.dataset.mode; S.error=""; render(); };
+});
+document.getElementById("print").onclick = ()=>window.print();
+document.getElementById("copyTxt").onclick = async ()=>{
+  try{ await navigator.clipboard.writeText(plainText()); flash("Copied"); }
+  catch(e){ flash("Clipboard blocked"); }
+};
+document.getElementById("flip").onclick = ()=>{
+  const to=document.getElementById("tools"), st=document.getElementById("stage");
+  const showing = st.dataset.hide==="0";
+  st.dataset.hide = showing?"1":"0"; to.dataset.hide = showing?"0":"1";
+  document.getElementById("flip").textContent = showing?"View resume":"View tools";
+};
+
+document.getElementById("tools").addEventListener("input", e=>{
+  const el=e.target;
+  if(el.dataset.c){ S.profile.contact[el.dataset.c]=el.value; renderPaper(); parserCheck(); save(); }
+  else if(el.dataset.p){ S.profile[el.dataset.p]=el.value; renderPaper(); parserCheck(); save(); }
+  else if(el.dataset.f){
+    const r=S.profile.experience.find(x=>x.id===el.dataset.id);
+    if(r){ r[el.dataset.f]=el.value; renderPaper(); parserCheck(); save(); }
+  }
+  else if(el.id==="jd"||el.id==="jd2"){ S.jd=el.value; save(); }
+  else if(el.id==="notes"){ S.notesDraft=el.value; }
+});
+
+document.getElementById("tools").addEventListener("click", async e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const act=b.dataset.act;
+
+  if(b.id==="addRole"){
+    S.profile.experience.push({id:uid(),role:"",company:"",start:"",end:"",location:"",bullets:""});
+    save(); render(); return;
+  }
+  if(act==="del"){ S.profile.experience=S.profile.experience.filter(r=>r.id!==b.dataset.id); save(); render(); return; }
+  if(act==="up"){
+    const i=S.profile.experience.findIndex(r=>r.id===b.dataset.id);
+    [S.profile.experience[i-1],S.profile.experience[i]]=[S.profile.experience[i],S.profile.experience[i-1]];
+    save(); render(); return;
+  }
+  if(act==="copyBullet"){
+    try{ await navigator.clipboard.writeText(S.variants.bullets[b.dataset.i]); flash("Copied"); }catch(err){ flash("Clipboard blocked"); }
+    return;
+  }
+  if(act==="addBullet"){
+    const sel=document.querySelector(`[data-vsel="${b.dataset.i}"]`);
+    const r=S.profile.experience.find(x=>x.id===sel.value);
+    if(r){ r.bullets=(r.bullets?r.bullets+"\n":"")+S.variants.bullets[b.dataset.i]; save(); flash("Added to "+(r.role||"role")); render(); }
+    return;
+  }
+
+  /* ---- import ---- */
+  if(b.id==="doImport"){
+    const txt=document.getElementById("importText").value.trim();
+    if(!txt){ S.error="Paste something first."; render(); return; }
+    await run("Reading it…", async ()=>{
+      const out = await askJSON(
+`Extract structured resume data from the text below. Use only what is written there — do not add, guess, or embellish anything.
+${RULES}
+
+Shape:
+{"contact":{"name":"","title":"","email":"","phone":"","location":"","links":""},
+ "summary":"",
+ "experience":[{"role":"","company":"","start":"MM/YYYY","end":"MM/YYYY or Present","location":"","bullets":["",""]}],
+ "education":["School | Degree | Year"],
+ "skills":["Category: a, b, c"],
+ "projects":["Name | description | link"]}
+
+TEXT:
+${txt}`);
+      S.profile.contact={...S.profile.contact,...(out.contact||{})};
+      if(out.summary) S.profile.summary=out.summary;
+      (out.experience||[]).forEach(r=>S.profile.experience.push({
+        id:uid(), role:r.role||"", company:r.company||"", start:r.start||"", end:r.end||"",
+        location:r.location||"", bullets:(r.bullets||[]).join("\n")
+      }));
+      if((out.education||[]).length) S.profile.educationRaw=(out.education||[]).join("\n");
+      if((out.skills||[]).length) S.profile.skillsRaw=(out.skills||[]).join("\n");
+      if((out.projects||[]).length) S.profile.projectsRaw=(out.projects||[]).join("\n");
+      save();
+    });
+    return;
+  }
+
+  /* ---- gap questions ---- */
+  if(b.id==="doGaps"){
+    await run("Looking for the holes…", async ()=>{
+      const out = await askJSON(
+`You are a blunt resume coach. Read this profile and ask the 5 questions whose answers would most improve it — target vague scope, missing numbers, unclear ownership, and unexplained gaps. Ask about what is actually there. Be specific: name the role or bullet.
+
+Shape: {"questions":["",""]}
+
+PROFILE:
+${plainText()}`);
+      S.questions = out.questions||[];
+    });
+    return;
+  }
+
+  /* ---- bullets ---- */
+  if(b.id==="doBullets"){
+    const notes=document.getElementById("notes").value.trim();
+    const target=document.getElementById("targetRole").value.trim();
+    if(!notes){ S.error="Describe what you did first."; render(); return; }
+    await run("Writing…", async ()=>{
+      S.variants = await askJSON(
+`Turn these rough notes into three resume bullets. Each is the same truth in a different shape: one leading with the result, one leading with the action and scope, one leading with the problem solved.
+${RULES}
+Each bullet: one sentence, under 210 characters, starts with a past-tense verb, no first person, no "responsible for" or "helped with". Where the notes lack a number, write it honestly without one — then ask for that number in questions.
+${target?`Target role: ${target}. Emphasise what that role would care about, without changing the facts.`:""}
+
+Shape: {"bullets":["","",""],"questions":["",""]}
+
+NOTES:
+${notes}`);
+    });
+    return;
+  }
+
+  /* ---- tailor ---- */
+  if(b.id==="clearTailor"){ S.tailored=null; S.keywords=[]; render(); return; }
+  if(b.id==="doTailor"){
+    const jd=(document.getElementById("jd")||{}).value?.trim()||S.jd.trim();
+    if(!jd){ S.error="Paste the job posting first."; render(); return; }
+    if(!S.profile.experience.length){ S.error="Add at least one role in Profile first."; render(); return; }
+    S.jd=jd; save();
+
+    await run("Reading the posting…", async ()=>{
+      const kw = await askJSON(
+`Extract the concrete requirements a screener would match against: tools, technologies, methods, domains, credentials. Skip generic filler like "team player" or "fast-paced". At most 16, each 1-4 words, using the posting's own wording.
+
+Shape: {"keywords":["",""]}
+
+POSTING:
+${jd}`);
+      const resumeText = plainText().toLowerCase();
+      S.keywords = (kw.keywords||[]).map(t=>({term:t, hit:resumeText.includes(String(t).toLowerCase())}));
+
+      const bullets={};
+      for(const r of S.profile.experience){
+        S.busy = `Tailoring ${r.role||r.company||"role"}…`; render();
+        const src=lines(r.bullets);
+        if(!src.length){ bullets[r.id]=[]; continue; }
+        const out = await askJSON(
+`Rewrite this role's bullets for the posting below. Keep the 3-5 most relevant, drop the rest, order them most-relevant first.
+${RULES}
+Mirror the posting's vocabulary only where the source already describes that same thing. Keep every existing number exactly as written. One sentence each, under 210 characters, past-tense verb first.
+
+Shape: {"bullets":["",""]}
+
+ROLE: ${r.role} at ${r.company}
+SOURCE BULLETS:
+${src.map(x=>"- "+x).join("\n")}
+
+POSTING:
+${jd}`);
+        bullets[r.id]=out.bullets||src;
+      }
+
+      let summary=S.profile.summary;
+      if(S.profile.summary){
+        S.busy="Adjusting the summary…"; render();
+        const out=await askJSON(
+`Rewrite this summary for the posting. Two sentences maximum. Only facts already present.
+${RULES}
+Shape: {"summary":""}
+
+SUMMARY: ${S.profile.summary}
+POSTING: ${jd}`);
+        summary=out.summary||summary;
+      }
+      S.tailored={bullets,summary}; S.showTailored=true;
+    });
+    return;
+  }
+
+  /* ---- score ---- */
+  if(b.id==="doScore"){
+    const jd=(document.getElementById("jd2")||{}).value?.trim()||S.jd.trim();
+    if(!jd){ S.error="Paste the posting first."; render(); return; }
+    S.jd=jd; save();
+    await run("Grading…", async ()=>{
+      S.score = await askJSON(
+`You are an ATS screener and a hiring manager at once. Grade this resume against the posting. Be strict — most resumes land between 45 and 75. Every fix must name the exact bullet or section to change and what to change it to.
+
+Shape: {"score":0,"breakdown":[{"label":"Keyword coverage","score":0,"note":""},{"label":"Evidence and metrics","score":0,"note":""},{"label":"Relevance of experience","score":0,"note":""},{"label":"Structure and parseability","score":0,"note":""}],"fixes":["",""]}
+
+RESUME:
+${plainText()}
+
+POSTING:
+${jd}`);
+    });
+    return;
+  }
+});
+
+/* ============================ boot ============================ */
+(async ()=>{ await load(); render(); })();
+</script>
