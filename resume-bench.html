@@ -105,6 +105,13 @@
   .variant{border:1.5px solid var(--edge);border-radius:4px;padding:11px 12px;margin-bottom:9px;font-size:13.5px;line-height:1.55}
   .variant:hover{border-color:var(--ink)}
   .variant .acts{display:flex;gap:6px;margin-top:9px;align-items:center}
+  .doc{border:1.5px solid var(--edge);border-radius:4px;padding:11px 12px;margin-bottom:9px}
+  .doc[data-open="1"]{border-color:var(--ink);background:#FFFCF0}
+  .doc .t{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+  .doc .name{font-size:13.5px;font-weight:600;line-height:1.4}
+  .doc .meta{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.05em;text-transform:uppercase;margin-top:3px}
+  .doc .acts{display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .doc select{font-family:var(--mono);font-size:10px;padding:5px 6px;border:1.5px solid var(--edge);border-radius:3px;background:#fff;color:var(--ink-2)}
 
   /* ---------- the paper ---------- */
   .sheet-head{
@@ -178,6 +185,7 @@
       <button role="tab" data-mode="bullets" aria-selected="false">Bullets</button>
       <button role="tab" data-mode="tailor" aria-selected="false">Tailor</button>
       <button role="tab" data-mode="score" aria-selected="false">Score</button>
+      <button role="tab" data-mode="saved" aria-selected="false">Saved</button>
     </nav>
     <div class="right">
       <span class="saved" id="saved"></span>
@@ -198,6 +206,7 @@
       <div class="check" id="check"></div>
     </section>
   </main>
+  <input type="file" id="backupFile" accept="application/json,.json" hidden>
 </div>
 
 <script>
@@ -212,6 +221,7 @@ const BLANK = {
 };
 let S = {
   profile: JSON.parse(JSON.stringify(BLANK)),
+  documents:[], activeDocId:null, docDraft:{company:"",role:""},
   jd:"", mode:"profile",
   keywords:[], tailored:null, showTailored:true,
   score:null, variants:null, questions:null,
@@ -224,6 +234,7 @@ const lines = s => String(s??"").split("\n").map(x=>x.trim()).filter(Boolean);
 /* ============================ storage ============================ */
 const KEY_PROFILE = "bench:profile";
 const KEY_JD = "bench:jd";
+const KEY_DOCS = "bench:documents";
 const SAVE_DEBOUNCE_MS = 600;
 
 /* window.storage only exists inside a claude.ai artifact; localStorage is the local path. */
@@ -245,6 +256,7 @@ async function save(){
     try{
       await store.set(KEY_PROFILE, JSON.stringify(S.profile));
       await store.set(KEY_JD, S.jd);
+      await store.set(KEY_DOCS, JSON.stringify(S.documents));
       flash("Saved");
     }catch(e){
       console.error("resumebench: save failed", e);
@@ -267,6 +279,112 @@ async function load(){
   }catch(e){
     console.error("resumebench: could not read the saved posting", e);
   }
+  try{
+    const raw = await store.get(KEY_DOCS);
+    if(raw) S.documents = JSON.parse(raw);
+  }catch(e){
+    console.error("resumebench: could not read the saved resumes", e);
+    S.error = "Couldn't read your saved resumes, so the list started empty. Nothing was overwritten — details are in the browser console.";
+  }
+}
+
+/* ============================ documents ============================ */
+/* A document is a saved projection: the posting it was aimed at, the tailored
+   overlay, and where the application stands. The master is never copied into
+   one — reopening re-projects over current truth, so fixing a typo in Profile
+   fixes it everywhere. Same invariant as S.tailored, just persisted. */
+const DOC_STATUSES = ["draft","applied","interviewing","offer","closed"];
+const BACKUP_APP = "resumebench";
+const BACKUP_VERSION = 1;
+
+const nowISO = () => new Date().toISOString();
+const shortDate = iso => {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+};
+const clone = v => v==null ? v : JSON.parse(JSON.stringify(v));
+const activeDoc = () => S.documents.find(d=>d.id===S.activeDocId) || null;
+const docTitle = d => [d.company,d.role].filter(Boolean).join(" — ") || "Untitled";
+
+/* Everything that makes one saved version differ from another. */
+function projection(){
+  return { jd:S.jd, tailored:clone(S.tailored), keywords:clone(S.keywords)||[], score:clone(S.score) };
+}
+function draftNames(){
+  return { company:S.docDraft.company.trim(), role:S.docDraft.role.trim() };
+}
+
+function createDocument(){
+  const doc = { id:uid(), status:"draft", createdAt:nowISO(), updatedAt:nowISO(),
+                ...draftNames(), ...projection() };
+  S.documents.unshift(doc);
+  S.activeDocId = doc.id;
+  save();
+  return doc;
+}
+function updateDocument(){
+  const doc = activeDoc();
+  if(!doc) return createDocument();
+  Object.assign(doc, projection(), draftNames(), {updatedAt:nowISO()});
+  save();
+  return doc;
+}
+function openDocument(id){
+  const doc = S.documents.find(d=>d.id===id);
+  if(!doc) return;
+  S.activeDocId = doc.id;
+  S.jd = doc.jd || "";
+  S.tailored = clone(doc.tailored);
+  S.keywords = clone(doc.keywords) || [];
+  S.score = clone(doc.score);
+  S.docDraft = { company:doc.company||"", role:doc.role||"" };
+  S.showTailored = true;
+  save();
+}
+/* Detaches from the saved version and drops the overlay. The posting stays —
+   the usual reason to come back to master is to retailor against it. */
+function closeDocument(){
+  S.activeDocId = null; S.tailored = null; S.keywords = []; S.score = null;
+  S.docDraft = { company:"", role:"" };
+  save();
+}
+function deleteDocument(id){
+  const wasOpen = S.activeDocId === id;
+  S.documents = S.documents.filter(d=>d.id!==id);
+  if(wasOpen) closeDocument(); else save();
+}
+
+/* ---- backup: the answer to "what if I clear my browser data" ---- */
+function exportBackup(){
+  const payload = { app:BACKUP_APP, version:BACKUP_VERSION, exportedAt:nowISO(),
+                    profile:S.profile, documents:S.documents };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `resumebench-${nowISO().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+  flash("Backup downloaded");
+}
+
+/* Restore replaces rather than merges — predictable beats clever when there is no undo. */
+async function importBackup(file){
+  let data;
+  try{ data = JSON.parse(await file.text()); }
+  catch(e){ throw new Error("That file isn't valid JSON."); }
+  if(data.app !== BACKUP_APP || !data.profile)
+    throw new Error("That file isn't a resumebench backup.");
+  const docs = Array.isArray(data.documents) ? data.documents : [];
+  const ok = confirm(
+    `Restore the profile and ${docs.length} saved resume${docs.length===1?"":"s"} from this file?\n\n` +
+    `This replaces what's in the browser now, and there's no undo. Export a backup first if you want to keep it.`
+  );
+  if(!ok) return false;
+  S.profile = {...BLANK, ...data.profile};
+  S.documents = docs;
+  closeDocument();
+  flash("Backup restored");
+  return true;
 }
 
 /* ============================ model ============================ */
@@ -618,6 +736,21 @@ function panelTailor(){
       ${S.tailored?`<button class="btn ghost" id="clearTailor">Back to master</button>`:""}
     </div>
   </div>
+  ${S.tailored?`
+  <div class="panel">
+    <h3>${activeDoc()?"Saved version":"Save this version"}</h3>
+    <p class="hint">${activeDoc()
+      ? "Updating overwrites the version you opened, posting and score included."
+      : "Keeps this version, the posting, and the score together — so when the call comes eight weeks later you know exactly what you claimed."}</p>
+    <div class="row">
+      <div><label>Company</label><input type="text" id="docCompany" value="${esc(S.docDraft.company)}" placeholder="Nordwind Payments"></div>
+      <div><label>Role</label><input type="text" id="docRole" value="${esc(S.docDraft.role)}" placeholder="Staff Backend Engineer"></div>
+    </div>
+    <div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn solid" id="saveDoc">${activeDoc()?"Update saved version":"Save this version"}</button>
+      ${activeDoc()?`<button class="btn" id="saveDocNew">Save as new</button>`:""}
+    </div>
+  </div>`:""}
   ${S.keywords.length?`
   <div class="panel">
     <h3>Keywords</h3>
@@ -653,19 +786,62 @@ function panelScore(){
   </div>`:""}`;
 }
 
+function panelSaved(){
+  return `
+  ${banner()}
+  <div class="panel">
+    <h3>Saved resumes</h3>
+    <p class="hint">Every version you've kept, with the posting it was aimed at. Opening one re-projects it over your current master — fix a typo in <b>Profile</b> and every saved version inherits it.</p>
+    ${S.documents.length ? S.documents.map(d=>`
+      <div class="doc" data-open="${d.id===S.activeDocId?1:0}">
+        <div class="t">
+          <span class="name">${esc(docTitle(d))}</span>
+          ${d.score?`<span class="meta">${esc(String(d.score.score))}/100</span>`:""}
+        </div>
+        <div class="meta">Saved ${esc(shortDate(d.updatedAt))}${d.id===S.activeDocId?" · open now":""}</div>
+        <div class="acts">
+          <select data-status="${d.id}" aria-label="Application status">
+            ${DOC_STATUSES.map(s=>`<option value="${s}"${s===d.status?" selected":""}>${s[0].toUpperCase()+s.slice(1)}</option>`).join("")}
+          </select>
+          <button class="btn sm" data-act="openDoc" data-id="${d.id}">Open</button>
+          <button class="btn ghost sm" data-act="delDoc" data-id="${d.id}">Delete</button>
+        </div>
+      </div>`).join("")
+    : `<div class="empty">Nothing saved yet.<br>Tailor to a posting, then save that version.</div>`}
+    ${S.activeDocId?`<button class="btn ghost" id="closeDoc" style="margin-top:10px">Back to master</button>`:""}
+  </div>
+
+  <div class="panel">
+    <h3>Backup</h3>
+    <p class="hint">All of this lives in this browser only. Clearing site data wipes it — export a file to keep a copy, or to carry everything to another machine.</p>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn" id="doExport">Export backup</button>
+      <button class="btn ghost" id="doImport">Restore from file</button>
+    </div>
+  </div>`;
+}
+
 /* ============================ render ============================ */
-function render(){
-  document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-selected", b.dataset.mode===S.mode));
-  const t = document.getElementById("tools");
-  t.innerHTML = {profile:panelProfile,bullets:panelBullets,tailor:panelTailor,score:panelScore}[S.mode]();
-  renderPaper();
-  parserCheck();
-  document.getElementById("sheetLabel").textContent =
-    (S.tailored && S.showTailored) ? "Tailored to posting" : "Master resume";
+const PANELS = {profile:panelProfile,bullets:panelBullets,tailor:panelTailor,score:panelScore,saved:panelSaved};
+
+function renderSheetHead(){
+  const doc = activeDoc();
+  const showingTailored = S.tailored && S.showTailored;
+  document.getElementById("sheetLabel").textContent = showingTailored
+    ? (doc ? docTitle(doc) : "Tailored to posting")
+    : "Master resume";
   document.getElementById("sheetToggle").innerHTML = S.tailored
     ? `<button class="btn ghost sm" id="toggleV">${S.showTailored?"Show master":"Show tailored"}</button>` : "";
   const tv = document.getElementById("toggleV");
   if(tv) tv.onclick = ()=>{ S.showTailored=!S.showTailored; render(); };
+}
+
+function render(){
+  document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-selected", b.dataset.mode===S.mode));
+  document.getElementById("tools").innerHTML = PANELS[S.mode]();
+  renderPaper();
+  parserCheck();
+  renderSheetHead();
 }
 
 /* ============================ events ============================ */
@@ -694,6 +870,31 @@ document.getElementById("tools").addEventListener("input", e=>{
   }
   else if(el.id==="jd"||el.id==="jd2"){ S.jd=el.value; save(); }
   else if(el.id==="notes"){ S.notesDraft=el.value; }
+  else if(el.id==="docCompany"){ S.docDraft.company=el.value; }
+  else if(el.id==="docRole"){ S.docDraft.role=el.value; }
+});
+
+document.getElementById("tools").addEventListener("change", e=>{
+  const id = e.target.dataset.status;
+  if(!id) return;
+  const doc = S.documents.find(d=>d.id===id);
+  if(!doc) return;
+  doc.status = e.target.value;
+  doc.updatedAt = nowISO();
+  save(); render();
+});
+
+document.getElementById("backupFile").addEventListener("change", async e=>{
+  const file = e.target.files[0];
+  e.target.value = "";           // so picking the same file twice still fires
+  if(!file) return;
+  S.error = "";
+  try{ if(await importBackup(file)) render(); }
+  catch(err){
+    console.error("resumebench: restore failed", err);
+    S.error = err.message;
+    render();
+  }
 });
 
 document.getElementById("tools").addEventListener("click", async e=>{
@@ -720,6 +921,19 @@ document.getElementById("tools").addEventListener("click", async e=>{
     if(r){ r.bullets=(r.bullets?r.bullets+"\n":"")+S.variants.bullets[b.dataset.i]; save(); flash("Added to "+(r.role||"role")); render(); }
     return;
   }
+
+  /* ---- saved documents ---- */
+  if(b.id==="saveDoc"){ updateDocument(); flash("Version saved"); render(); return; }
+  if(b.id==="saveDocNew"){ createDocument(); flash("Saved as new"); render(); return; }
+  if(b.id==="closeDoc"||b.id==="clearTailor"){ closeDocument(); render(); return; }
+  if(act==="openDoc"){ openDocument(b.dataset.id); S.mode="tailor"; S.error=""; render(); return; }
+  if(act==="delDoc"){
+    const doc=S.documents.find(d=>d.id===b.dataset.id);
+    if(doc && confirm(`Delete the ${docTitle(doc)} version? There's no undo.`)){ deleteDocument(doc.id); render(); }
+    return;
+  }
+  if(b.id==="doExport"){ exportBackup(); return; }
+  if(b.id==="doImport"){ document.getElementById("backupFile").click(); return; }
 
   /* ---- import ---- */
   if(b.id==="doImport"){
@@ -790,7 +1004,6 @@ ${notes}`);
   }
 
   /* ---- tailor ---- */
-  if(b.id==="clearTailor"){ S.tailored=null; S.keywords=[]; render(); return; }
   if(b.id==="doTailor"){
     const jd=(document.getElementById("jd")||{}).value?.trim()||S.jd.trim();
     if(!jd){ S.error="Paste the job posting first."; render(); return; }
@@ -799,14 +1012,16 @@ ${notes}`);
 
     await run("Reading the posting…", async ()=>{
       const kw = await askJSON(
-`Extract the concrete requirements a screener would match against: tools, technologies, methods, domains, credentials. Skip generic filler like "team player" or "fast-paced". At most 16, each 1-4 words, using the posting's own wording.
+`Extract the concrete requirements a screener would match against: tools, technologies, methods, domains, credentials. Skip generic filler like "team player" or "fast-paced". At most 16, each 1-4 words, using the posting's own wording. Also read off the hiring company and the role title exactly as the posting writes them — use "" for either if it doesn't say.
 
-Shape: {"keywords":["",""]}
+Shape: {"company":"","role":"","keywords":["",""]}
 
 POSTING:
 ${jd}`);
       const resumeText = plainText().toLowerCase();
       S.keywords = (kw.keywords||[]).map(t=>({term:t, hit:resumeText.includes(String(t).toLowerCase())}));
+      /* Prefill the save form, but never overwrite names on a version already open. */
+      if(!S.activeDocId) S.docDraft = { company:kw.company||"", role:kw.role||"" };
 
       const bullets={};
       for(const r of S.profile.experience){
