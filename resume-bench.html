@@ -166,6 +166,81 @@
     .paper{padding:34px 26px 44px}
   }
 
+  /* ---------- section cards ---------- */
+  .sec{border:1.5px solid var(--edge);border-radius:4px;margin-bottom:10px;background:var(--paper)}
+  .sec.dragging{opacity:.45}
+  .sec-head{display:flex;align-items:center;gap:7px;padding:9px 10px;border-bottom:1.5px solid transparent}
+  .sec[data-open="1"] .sec-head{border-bottom-color:var(--mat-line)}
+  .grip{cursor:grab;color:var(--ink-3);font-size:13px;line-height:1;user-select:none}
+  .sec-title{
+    flex:1;min-width:0;border:1px solid transparent;background:transparent;border-radius:3px;
+    font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink);padding:4px 6px;
+  }
+  .sec-title:hover{border-color:var(--mat-line)}
+  .sec-title:focus{border-color:var(--ink);background:#fff}
+  .badge{
+    font-family:var(--mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;
+    padding:3px 5px;border-radius:2px;border:1px solid var(--edge);color:var(--ink-3);white-space:nowrap;
+  }
+  .badge.warn{border-color:var(--gap);color:var(--gap)}
+  .sec-acts{display:flex;gap:4px;flex-shrink:0}
+  .sec-body{padding:11px 12px 13px}
+  .seg{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+
+  /* ---------- design picker ---------- */
+  .tpl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;margin-bottom:13px}
+  .tpl{
+    text-align:left;display:flex;flex-direction:column;gap:3px;cursor:pointer;
+    border:1.5px solid var(--edge);border-radius:4px;background:#fff;padding:9px 10px;font:inherit;
+  }
+  .tpl:hover{border-color:var(--ink-2)}
+  .tpl[aria-pressed="true"]{border-color:var(--ink);background:#FFFCF0}
+  .tpl-name{font-family:var(--display);font-size:12.5px;font-weight:600;color:var(--ink)}
+  .tpl-warn{font-family:var(--mono);font-size:9px;color:var(--gap);text-transform:uppercase;letter-spacing:.04em}
+  .tpl-note{font-size:11.5px;line-height:1.45;color:var(--ink-2)}
+  .swatches{display:flex;gap:6px;margin-bottom:12px}
+  .sw{width:26px;height:26px;border-radius:3px;border:2px solid transparent;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.85);cursor:pointer;padding:0}
+  .sw[aria-pressed="true"]{border-color:var(--ink)}
+
+  /* ---------- content check ---------- */
+  .check h4{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .ck-score{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+  .ck-score small{font-family:var(--mono);font-size:9px;font-weight:400;color:var(--ink-3)}
+  .ck-score[data-band="good"]{color:var(--ok)}
+  .ck-score[data-band="low"]{color:var(--gap)}
+  .ck-group{margin-bottom:9px}
+  .ck-group:last-child{margin-bottom:0}
+  .ck-group h5{
+    margin:0 0 4px;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--ink-3);font-weight:600;
+  }
+  .check li.bad{color:var(--gap);font-weight:500}
+
+  /* ---------- paper templates ----------
+     Every template keeps real headings, real lists and selectable text. Only
+     `sidebar` breaks the single-column rule, and the analyser flags it. */
+  .paper[data-density="tight"]{font-size:12.6px;line-height:1.34;padding:42px 46px 50px}
+  .paper[data-density="tight"] h2{margin:14px 0 5px}
+  .paper[data-density="tight"] .job{margin-bottom:10px}
+
+  .paper[data-template="editorial"] h1{font-size:30px;font-weight:400;letter-spacing:.02em}
+  .paper[data-template="editorial"] h2{
+    border-bottom-width:.5px;border-color:var(--accent);color:var(--accent);
+    letter-spacing:.18em;font-weight:400;font-size:11px;
+  }
+  .paper[data-template="modern"]{font-family:var(--display),var(--doc)}
+  .paper[data-template="modern"] h1{letter-spacing:-.02em}
+  .paper[data-template="modern"] h2{border-bottom:none;color:var(--accent);letter-spacing:.06em;margin-bottom:3px}
+  .paper[data-template="modern"] .job .l2{font-style:normal;color:#555}
+  .paper[data-template="compact"] h1{font-size:20px}
+  .paper[data-template="compact"] h2{margin:13px 0 4px;font-size:11.4px}
+
+  .paper[data-template="sidebar"] h2{color:var(--accent)}
+  .paper .cols{display:grid;grid-template-columns:1fr 2fr;gap:0 26px;align-items:start}
+  .paper .cols aside{border-right:1px solid #DDD;padding-right:22px}
+  .paper .cols aside h2:first-child,.paper .cols .main h2:first-child{margin-top:6px}
+  @media (max-width:700px){ .paper .cols{grid-template-columns:1fr} .paper .cols aside{border-right:none;padding-right:0} }
+
   @media print{
     body{background:#fff;background-image:none}
     .bar,.tools,.sheet-head,.check{display:none!important}
@@ -211,30 +286,156 @@
 
 <script>
 /* ============================ state ============================ */
+const uid = () => Math.random().toString(36).slice(2,8);
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const lines = s => String(s??"").split("\n").map(x=>x.trim()).filter(Boolean);
+const clone = v => v==null ? v : JSON.parse(JSON.stringify(v));
+
+/* ---------------------------- sections ----------------------------
+   The resume is an ordered list of sections. Three types cover every
+   shape a resume needs, so adding "Most Proud Of" is data, not code:
+
+     text     one paragraph                       {text}
+     entries  dated items with bullets            {entries:[{id,role,company,start,end,location,bullets}]}
+     lines    one item per line                   {raw, layout}
+
+   `layout` decides only how a lines section prints:
+     pipe    split on | and join with —, one div per line   (Education)
+     bullet  same split, rendered as a real <ul>            (Projects, Strengths)
+     plain   the line verbatim                              (Skills)                 */
+const SECTION_TYPES = ["text","entries","lines"];
+const LINE_LAYOUTS = { pipe:"Lines, split on |", bullet:"Bulleted list", plain:"Plain lines" };
+
+/* Headings an ATS is likely to recognise. Anything else still renders — the
+   analyser just warns, because a parser that can't place a heading may drop it. */
+const STANDARD_HEADINGS = [
+  "summary","professional summary","objective","profile",
+  "experience","work experience","professional experience","employment history","employment",
+  "projects","education","skills","technical skills","core skills",
+  "certifications","licenses","awards","publications","languages","volunteering","volunteer experience"
+];
+
+const SECTION_PRESETS = [
+  { label:"Experience",      type:"entries", title:"Experience" },
+  { label:"Volunteering",    type:"entries", title:"Volunteering" },
+  { label:"Summary",         type:"text",    title:"Summary" },
+  { label:"Education",       type:"lines",   title:"Education",       layout:"pipe",   hint:"TU Berlin | BSc Computer Science | 2019" },
+  { label:"Projects",        type:"lines",   title:"Projects",        layout:"bullet", hint:"Ledger | Double-entry bookkeeping library | github.com/you/ledger" },
+  { label:"Skills",          type:"lines",   title:"Skills",          layout:"plain",  hint:"Languages: Python, Go, TypeScript" },
+  { label:"Certifications",  type:"lines",   title:"Certifications",  layout:"pipe",   hint:"CKA | Linux Foundation | 2024" },
+  { label:"Awards",          type:"lines",   title:"Awards",          layout:"pipe",   hint:"Best Paper | ACM SIGCOMM | 2023" },
+  { label:"Publications",    type:"lines",   title:"Publications",    layout:"bullet", hint:"Title | venue | year" },
+  { label:"Languages",       type:"lines",   title:"Languages",       layout:"plain",  hint:"German — fluent" },
+  { label:"Most proud of",   type:"lines",   title:"Most Proud Of",   layout:"bullet", hint:"One achievement per line" },
+  { label:"Strengths",       type:"lines",   title:"Strengths",       layout:"bullet", hint:"One per line" },
+  { label:"Passions",        type:"lines",   title:"Passions",        layout:"bullet", hint:"One per line" },
+  { label:"Custom section",  type:"lines",   title:"New Section",     layout:"bullet", hint:"One per line" }
+];
+
+const HINT_BY_TITLE = Object.fromEntries(SECTION_PRESETS.filter(p=>p.hint).map(p=>[p.title.toLowerCase(), p.hint]));
+const blankEntry = () => ({ id:uid(), role:"", company:"", start:"", end:"", location:"", bullets:"" });
+
+function sectionFromPreset(preset){
+  const base = { id:uid(), type:preset.type, title:preset.title };
+  if(preset.type==="text")    return { ...base, text:"" };
+  if(preset.type==="entries") return { ...base, entries:[blankEntry()] };
+  return { ...base, raw:"", layout:preset.layout||"bullet" };
+}
+
+/* Fills in whatever a stored section is missing, so a hand-edited backup or a
+   half-written record renders instead of throwing. */
+function normaliseSection(s){
+  const type = SECTION_TYPES.includes(s?.type) ? s.type : "lines";
+  const base = { id:s?.id||uid(), type, title:String(s?.title||"Section") };
+  if(type==="text")    return { ...base, text:String(s.text||"") };
+  if(type==="entries") return { ...base, entries:(Array.isArray(s.entries)?s.entries:[]).map(e=>({...blankEntry(), ...e, id:e?.id||uid()})) };
+  return { ...base, raw:String(s.raw||""), layout:LINE_LAYOUTS[s.layout] ? s.layout : "pipe" };
+}
+
 const BLANK = {
   contact:{name:"",title:"",email:"",phone:"",location:"",links:""},
-  summary:"",
-  experience:[],
-  educationRaw:"",
-  skillsRaw:"",
-  projectsRaw:""
+  sections:[
+    { id:"summary",    type:"text",    title:"Summary",    text:"" },
+    { id:"experience", type:"entries", title:"Experience", entries:[] },
+    { id:"projects",   type:"lines",   title:"Projects",   raw:"", layout:"bullet" },
+    { id:"education",  type:"lines",   title:"Education",  raw:"", layout:"pipe" },
+    { id:"skills",     type:"lines",   title:"Skills",     raw:"", layout:"plain" }
+  ]
 };
+
+/* Profiles written before sections existed were a fixed set of named fields.
+   Entry ids are carried across unchanged — tailored overlays and saved
+   documents key off them, so losing one would orphan every saved version. */
+function migrateProfile(raw){
+  if(!raw || typeof raw!=="object") return clone(BLANK);
+  if(Array.isArray(raw.sections))
+    return { contact:{...BLANK.contact, ...(raw.contact||{})}, sections:raw.sections.map(normaliseSection) };
+
+  const p = clone(BLANK);
+  p.contact = { ...p.contact, ...(raw.contact||{}) };
+  const put = (id, patch) => { const s = p.sections.find(x=>x.id===id); if(s) Object.assign(s, patch); };
+  put("summary",   { text: raw.summary || "" });
+  put("experience",{ entries: (raw.experience||[]).map(e=>({ ...blankEntry(), ...e, id:e.id||uid() })) });
+  put("projects",  { raw: raw.projectsRaw  || "" });
+  put("education", { raw: raw.educationRaw || "" });
+  put("skills",    { raw: raw.skillsRaw    || "" });
+  return p;
+}
+
+/* Overlays used to carry a single `summary`; they now key text by section id. */
+function migrateOverlay(t){
+  if(!t) return null;
+  const texts = { ...(t.texts||{}) };
+  if(t.summary && !texts.summary) texts.summary = t.summary;
+  return { bullets: t.bullets || {}, texts };
+}
+
+/* ---------------------------- design ---------------------------- */
+const TEMPLATES = {
+  ats:       { label:"ATS plain",  safe:true,  note:"Georgia, single column, ruled headings. The safest thing to upload." },
+  editorial: { label:"Editorial",  safe:true,  note:"Bigger name, letterspaced headings, hairline rules." },
+  modern:    { label:"Modern",     safe:true,  note:"Sans-serif with accent-coloured headings, no rules." },
+  compact:   { label:"Compact",    safe:true,  note:"Tighter type and spacing — buys you most of a page." },
+  sidebar:   { label:"Sidebar",    safe:false, note:"Two columns: list sections move left, experience stays right. Some parsers read it out of order." }
+};
+const ACCENTS = ["#141C25","#2E6B58","#1F4E79","#7A3E9D","#A8442A"];
+const DEFAULT_DESIGN = { template:"ats", accent:"#141C25", density:"normal" };
+
 let S = {
-  profile: JSON.parse(JSON.stringify(BLANK)),
+  profile: clone(BLANK),
+  design: {...DEFAULT_DESIGN},
   documents:[], activeDocId:null, docDraft:{company:"",role:""},
   jd:"", mode:"profile",
   keywords:[], tailored:null, showTailored:true,
   score:null, variants:null, questions:null,
-  busy:"", error:""
+  collapsed:{}, busy:"", error:""
 };
-const uid = () => Math.random().toString(36).slice(2,8);
-const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const lines = s => String(s??"").split("\n").map(x=>x.trim()).filter(Boolean);
+
+/* ---------------------------- reading the model ---------------------------- */
+const sections      = () => S.profile.sections;
+const sectionById   = id => sections().find(s=>s.id===id) || null;
+const entrySections = () => sections().filter(s=>s.type==="entries");
+const allEntries    = () => entrySections().flatMap(s=>s.entries);
+const findEntry     = id => allEntries().find(e=>e.id===id) || null;
+const isStandard    = title => STANDARD_HEADINGS.includes(String(title||"").trim().toLowerCase());
+const hintFor       = s => HINT_BY_TITLE[String(s.title||"").toLowerCase()] || "One per line";
+
+/* Import merges into a matching section when one exists, rather than stacking
+   a second "Skills" underneath the first. */
+function ensureSection(title, type, layout){
+  const found = sections().find(s=>s.type===type && s.title.toLowerCase()===title.toLowerCase());
+  if(found) return found;
+  const s = sectionFromPreset({type, title, layout});
+  if(type==="entries") s.entries = [];
+  sections().push(s);
+  return s;
+}
 
 /* ============================ storage ============================ */
 const KEY_PROFILE = "bench:profile";
 const KEY_JD = "bench:jd";
 const KEY_DOCS = "bench:documents";
+const KEY_DESIGN = "bench:design";
 const SAVE_DEBOUNCE_MS = 600;
 
 /* window.storage only exists inside a claude.ai artifact; localStorage is the local path. */
@@ -257,6 +458,7 @@ async function save(){
       await store.set(KEY_PROFILE, JSON.stringify(S.profile));
       await store.set(KEY_JD, S.jd);
       await store.set(KEY_DOCS, JSON.stringify(S.documents));
+      await store.set(KEY_DESIGN, JSON.stringify(S.design));
       flash("Saved");
     }catch(e){
       console.error("resumebench: save failed", e);
@@ -268,7 +470,7 @@ function flash(t){ const el=document.getElementById("saved"); el.textContent=t; 
 async function load(){
   try{
     const raw = await store.get(KEY_PROFILE);
-    if(raw) S.profile = {...BLANK, ...JSON.parse(raw)};
+    if(raw) S.profile = migrateProfile(JSON.parse(raw));
   }catch(e){
     console.error("resumebench: could not read the saved profile", e);
     S.error = "Couldn't read the saved profile, so this started empty. Details are in the browser console.";
@@ -281,10 +483,16 @@ async function load(){
   }
   try{
     const raw = await store.get(KEY_DOCS);
-    if(raw) S.documents = JSON.parse(raw);
+    if(raw) S.documents = JSON.parse(raw).map(d=>({...d, tailored:migrateOverlay(d.tailored)}));
   }catch(e){
     console.error("resumebench: could not read the saved resumes", e);
     S.error = "Couldn't read your saved resumes, so the list started empty. Nothing was overwritten — details are in the browser console.";
+  }
+  try{
+    const raw = await store.get(KEY_DESIGN);
+    if(raw) S.design = {...DEFAULT_DESIGN, ...JSON.parse(raw)};
+  }catch(e){
+    console.error("resumebench: could not read the saved design", e);
   }
 }
 
@@ -295,20 +503,19 @@ async function load(){
    fixes it everywhere. Same invariant as S.tailored, just persisted. */
 const DOC_STATUSES = ["draft","applied","interviewing","offer","closed"];
 const BACKUP_APP = "resumebench";
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
 
 const nowISO = () => new Date().toISOString();
 const shortDate = iso => {
   const d = new Date(iso);
   return isNaN(d) ? "" : d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
 };
-const clone = v => v==null ? v : JSON.parse(JSON.stringify(v));
 const activeDoc = () => S.documents.find(d=>d.id===S.activeDocId) || null;
 const docTitle = d => [d.company,d.role].filter(Boolean).join(" — ") || "Untitled";
 
 /* Everything that makes one saved version differ from another. */
 function projection(){
-  return { jd:S.jd, tailored:clone(S.tailored), keywords:clone(S.keywords)||[], score:clone(S.score) };
+  return { jd:S.jd, tailored:clone(S.tailored), keywords:clone(S.keywords)||[], score:clone(S.score), design:clone(S.design) };
 }
 function draftNames(){
   return { company:S.docDraft.company.trim(), role:S.docDraft.role.trim() };
@@ -334,9 +541,10 @@ function openDocument(id){
   if(!doc) return;
   S.activeDocId = doc.id;
   S.jd = doc.jd || "";
-  S.tailored = clone(doc.tailored);
+  S.tailored = migrateOverlay(doc.tailored);
   S.keywords = clone(doc.keywords) || [];
   S.score = clone(doc.score);
+  if(doc.design) S.design = {...DEFAULT_DESIGN, ...doc.design};
   S.docDraft = { company:doc.company||"", role:doc.role||"" };
   S.showTailored = true;
   save();
@@ -357,7 +565,7 @@ function deleteDocument(id){
 /* ---- backup: the answer to "what if I clear my browser data" ---- */
 function exportBackup(){
   const payload = { app:BACKUP_APP, version:BACKUP_VERSION, exportedAt:nowISO(),
-                    profile:S.profile, documents:S.documents };
+                    profile:S.profile, design:S.design, documents:S.documents };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}));
   const a = document.createElement("a");
   a.href = url;
@@ -380,8 +588,9 @@ async function importBackup(file){
     `This replaces what's in the browser now, and there's no undo. Export a backup first if you want to keep it.`
   );
   if(!ok) return false;
-  S.profile = {...BLANK, ...data.profile};
-  S.documents = docs;
+  S.profile = migrateProfile(data.profile);
+  S.documents = docs.map(d=>({...d, tailored:migrateOverlay(d.tailored)}));
+  if(data.design) S.design = {...DEFAULT_DESIGN, ...data.design};
   closeDocument();
   flash("Backup restored");
   return true;
@@ -485,46 +694,50 @@ async function run(label, fn){
 }
 
 /* ============================ resume text ============================ */
-function activeExperience(){
-  return S.profile.experience.map(r=>{
-    const t = S.tailored && S.showTailored && S.tailored.bullets[r.id];
-    return {...r, bullets: t ? t : lines(r.bullets)};
+/* The overlay is read here and nowhere else. Everything downstream — the paper,
+   the plain-text copy, the analyser — goes through these two. */
+function activeEntries(section){
+  return section.entries.map(e=>{
+    const t = S.tailored && S.showTailored && S.tailored.bullets[e.id];
+    return { ...e, bullets: t ? t : lines(e.bullets) };
   });
 }
-function activeSummary(){
-  return (S.tailored && S.showTailored && S.tailored.summary) || S.profile.summary;
+function activeText(section){
+  const t = S.tailored && S.showTailored && S.tailored.texts && S.tailored.texts[section.id];
+  return t || section.text || "";
 }
+/* A lines section as display strings: "a | b | c" becomes "a — b — c". */
+function activeLines(section){
+  return lines(section.raw).map(l =>
+    section.layout==="plain" ? l : l.split("|").map(x=>x.trim()).filter(Boolean).join(" — "));
+}
+function sectionIsEmpty(s){
+  if(s.type==="text")    return !activeText(s).trim();
+  if(s.type==="entries") return !s.entries.length;
+  return !activeLines(s).length;
+}
+
 function plainText(){
-  const p=S.profile, c=p.contact, out=[];
+  const c = S.profile.contact, out = [];
   out.push(c.name||"Your Name");
   if(c.title) out.push(c.title);
   out.push([c.email,c.phone,c.location,c.links].filter(Boolean).join(" | "));
-  const sum = activeSummary();
-  if(sum){ out.push("","SUMMARY",sum); }
-  const exp = activeExperience();
-  if(exp.length){
-    out.push("","EXPERIENCE");
-    exp.forEach(r=>{
-      out.push("", `${r.role||"Role"}, ${r.company||"Company"}`);
-      out.push([[r.start,r.end].filter(Boolean).join(" - "), r.location].filter(Boolean).join(" | "));
-      r.bullets.forEach(b=>out.push("- "+b));
-    });
-  }
-  if(lines(p.projectsRaw).length){
-    out.push("","PROJECTS");
-    lines(p.projectsRaw).forEach(l=>out.push("- "+l.split("|").map(x=>x.trim()).filter(Boolean).join(" — ")));
-  }
-  if(lines(p.educationRaw).length){
-    out.push("","EDUCATION");
-    lines(p.educationRaw).forEach(l=>out.push(l.split("|").map(x=>x.trim()).filter(Boolean).join(" — ")));
-  }
-  if(lines(p.skillsRaw).length){
-    out.push("","SKILLS");
-    lines(p.skillsRaw).forEach(l=>out.push(l));
+  for(const s of sections()){
+    if(sectionIsEmpty(s)) continue;
+    out.push("", s.title.toUpperCase());
+    if(s.type==="text"){ out.push(activeText(s)); continue; }
+    if(s.type==="entries"){
+      activeEntries(s).forEach(e=>{
+        out.push("", `${e.role||"Role"}, ${e.company||"Company"}`);
+        out.push([[e.start,e.end].filter(Boolean).join(" - "), e.location].filter(Boolean).join(" | "));
+        e.bullets.forEach(b=>out.push("- "+b));
+      });
+      continue;
+    }
+    activeLines(s).forEach(l => out.push(s.layout==="plain" ? l : "- "+l));
   }
   return out.join("\n");
 }
-
 /* keyword highlighting: escape first, then mark */
 function mark(text){
   let out = esc(text);
@@ -541,74 +754,157 @@ function mark(text){
   return out;
 }
 
-function renderPaper(){
-  const p=S.profile, c=p.contact, h=[];
-  h.push(`<h1>${esc(c.name)||'<span class="placeholder">Your name</span>'}</h1>`);
-  const line = [c.email,c.phone,c.location,c.links].filter(Boolean).join(" &nbsp;|&nbsp; ");
-  h.push(`<div class="contact">${line||'<span class="placeholder">email · phone · city · linkedin</span>'}</div>`);
-
-  const sum = activeSummary();
-  if(sum) h.push(`<h2>Summary</h2><div>${mark(sum)}</div>`);
-
-  const exp = activeExperience();
-  if(exp.length){
-    h.push(`<h2>Experience</h2>`);
-    exp.forEach(r=>{
+/* The ATS guarantees live here: real headings, real text, real lists, one
+   column — regardless of what the model returned. `sidebar` is the one template
+   that breaks the single-column rule, and the analyser says so out loud. */
+function sectionHTML(s){
+  const h = [`<h2>${mark(s.title)}</h2>`];
+  if(s.type==="text"){ h.push(`<div>${mark(activeText(s))}</div>`); return h.join(""); }
+  if(s.type==="entries"){
+    activeEntries(s).forEach(e=>{
       h.push(`<div class="job">
-        <div class="l1"><span>${mark(r.role)||"Role"}</span><span>${esc([r.start,r.end].filter(Boolean).join(" – "))}</span></div>
-        <div class="l2"><span>${esc(r.company)}</span><span>${esc(r.location)}</span></div>
-        ${r.bullets.length?`<ul>${r.bullets.map(b=>`<li>${mark(b)}</li>`).join("")}</ul>`:""}
+        <div class="l1"><span>${mark(e.role)||"Role"}</span><span>${esc([e.start,e.end].filter(Boolean).join(" – "))}</span></div>
+        <div class="l2"><span>${mark(e.company)}</span><span>${esc(e.location)}</span></div>
+        ${e.bullets.length?`<ul>${e.bullets.map(b=>`<li>${mark(b)}</li>`).join("")}</ul>`:""}
       </div>`);
     });
+    return h.join("");
   }
-  const proj = lines(p.projectsRaw);
-  if(proj.length){
-    h.push(`<h2>Projects</h2><ul>${proj.map(l=>`<li>${mark(l.split("|").map(x=>x.trim()).filter(Boolean).join(" — "))}</li>`).join("")}</ul>`);
-  }
-  const edu = lines(p.educationRaw);
-  if(edu.length){
-    h.push(`<h2>Education</h2>${edu.map(l=>`<div class="skill-line">${mark(l.split("|").map(x=>x.trim()).filter(Boolean).join(" — "))}</div>`).join("")}`);
-  }
-  const sk = lines(p.skillsRaw);
-  if(sk.length){
-    h.push(`<h2>Skills</h2>${sk.map(l=>`<div class="skill-line">${mark(l)}</div>`).join("")}`);
-  }
-  if(!exp.length && !sk.length && !edu.length && !c.name){
-    h.push(`<div class="placeholder" style="margin-top:24px">Nothing here yet. Fill in the profile on the left, or paste an old resume to import it.</div>`);
-  }
-  document.getElementById("paper").innerHTML = h.join("");
+  const ls = activeLines(s);
+  h.push(s.layout==="bullet"
+    ? `<ul>${ls.map(l=>`<li>${mark(l)}</li>`).join("")}</ul>`
+    : ls.map(l=>`<div class="skill-line">${mark(l)}</div>`).join(""));
+  return h.join("");
 }
 
-/* ============================ parser check (no API) ============================ */
-const WEAK = ["responsible for","worked on","helped with","assisted with","involved in","duties included","tasked with"];
-function parserCheck(){
-  const p=S.profile, c=p.contact, out=[];
-  const exp = activeExperience();
-  const allB = exp.flatMap(r=>r.bullets);
+/* Sidebar splits by type, not by a per-section flag: list sections are the
+   short ones that read fine in a narrow column, entries need the width. */
+const goesInSidebar = s => s.type==="lines";
 
-  if(!c.email) out.push([1,"No email address — many parsers key the whole record off it."]);
-  if(!c.phone) out.push([1,"No phone number."]);
-  exp.forEach(r=>{ if(!r.start||!r.end) out.push([1,`${r.company||"A role"} is missing a date — use MM/YYYY or "Present".`]); });
+function renderPaper(){
+  const paper = document.getElementById("paper");
+  const c = S.profile.contact;
+  const design = S.design;
+  paper.dataset.template = design.template;
+  paper.dataset.density  = design.density;
+  paper.style.setProperty("--accent", design.accent);
 
-  const long = allB.filter(b=>b.length>230).length;
-  if(long) out.push([1,`${long} bullet${long>1?"s run":" runs"} past two lines. Cut to one idea each.`]);
+  const head = `<h1>${esc(c.name)||'<span class="placeholder">Your name</span>'}</h1>`
+    + `<div class="contact">${[c.email,c.phone,c.location,c.links].filter(Boolean).join(" &nbsp;|&nbsp; ")
+        || '<span class="placeholder">email · phone · city · linkedin</span>'}</div>`;
 
-  const noNum = allB.filter(b=>!/\d/.test(b)).length;
-  if(allB.length && noNum/allB.length > .6) out.push([1,`${noNum} of ${allB.length} bullets have no number in them. Scope or result, pick one.`]);
+  const filled = sections().filter(s=>!sectionIsEmpty(s));
+  let body;
+  if(design.template==="sidebar" && filled.some(goesInSidebar) && filled.some(s=>!goesInSidebar(s))){
+    body = `<div class="cols">
+      <aside>${filled.filter(goesInSidebar).map(sectionHTML).join("")}</aside>
+      <div class="main">${filled.filter(s=>!goesInSidebar(s)).map(sectionHTML).join("")}</div>
+    </div>`;
+  }else{
+    body = filled.map(sectionHTML).join("");
+  }
 
-  const weak = allB.filter(b=>WEAK.some(w=>b.toLowerCase().includes(w)));
-  if(weak.length) out.push([1,`${weak.length} bullet${weak.length>1?"s open":" opens"} with a passive phrase ("responsible for", "helped with").`]);
+  const empty = !filled.length && !c.name
+    ? `<div class="placeholder" style="margin-top:24px">Nothing here yet. Fill in the profile on the left, or paste an old resume to import it.</div>`
+    : "";
+  paper.innerHTML = head + body + empty;
+}
 
-  if(!lines(p.skillsRaw).length) out.push([1,"No skills section — this is where keyword matching usually happens."]);
+/* ============================ analyser (no API) ============================ */
+/* Runs on every keystroke, so it stays local and cheap. Every finding names the
+   thing to change; a score with no next action is decoration. */
+const FILLER = [
+  "responsible for","worked on","helped with","assisted with","involved in","duties included",
+  "tasked with","hard worker","team player","detail-oriented","results-driven","self-starter",
+  "go-getter","think outside the box","synergy","proven track record","passionate about",
+  "wide range of","various","utilised","utilized"
+];
+const STRONG_OPENER = /^(led|built|shipped|cut|grew|drove|designed|launched|migrated|reduced|increased|owned|rebuilt|automated|scaled|delivered|negotiated|mentored|introduced|eliminated|consolidated|streamlined|architected|wrote|developed|created|improved|implemented|established|managed|ran|founded|rewrote|ported|fixed|resolved|tested|measured|analys|analyz|trained|hired|coached|published|presented|sold|closed|raised|saved|removed|replaced|standardi|integrated|deployed|monitored|refactored|optimi|secured|shaped|halved|doubled|tripled|expanded|simplified|unified|documented|instrumented|benchmarked)/i;
+const MAX_BULLET_CHARS = 210;
+const LONG_BULLET_CHARS = 230;
+const TWO_PAGE_WORDS = 800;
 
+function analyse(){
+  const c = S.profile.contact;
+  const entries = allEntries();
+  const bullets = entrySections().flatMap(s=>activeEntries(s)).flatMap(e=>e.bullets);
   const words = plainText().split(/\s+/).filter(Boolean).length;
-  if(words > 800) out.push([1,`${words} words. Over roughly 800 you're on page three.`]);
+  const g = { Contact:[], Structure:[], Content:[], ATS:[] };
+  const add = (group, level, text) => g[group].push({level, text});
 
-  if(!out.length) out.push([0,"Clean. Standard headings, dated roles, quantified bullets, real text."]);
-  const html = out.map(([w,t])=>`<li class="${w?"warn":"pass"}">${esc(t)}</li>`).join("");
-  document.getElementById("check").innerHTML = `<h4>Parser check · runs locally</h4><ul>${html}</ul>`;
+  /* ---- contact ---- */
+  if(!c.name)     add("Contact","fail","No name on the resume.");
+  if(!c.email)    add("Contact","fail","No email address — many parsers key the whole record off it.");
+  if(!c.phone)    add("Contact","warn","No phone number.");
+  if(!c.location) add("Contact","warn","No location. Recruiters filter on it.");
+  if(!c.links)    add("Contact","warn","No LinkedIn or portfolio link.");
+  if(c.name && c.email && c.phone && c.location && c.links) add("Contact","pass","Contact block is complete.");
+
+  /* ---- structure ---- */
+  const filled = sections().filter(s=>!sectionIsEmpty(s));
+  if(!filled.length) add("Structure","fail","Every section is empty.");
+  if(!entries.length) add("Structure","fail","No experience entries yet.");
+  entries.forEach(e=>{
+    if(!e.start || !e.end) add("Structure","warn",`${e.company||e.role||"A role"} is missing a date — use MM/YYYY or "Present".`);
+  });
+  entries.forEach(e=>{
+    const n = lines(e.bullets).length;
+    if(n && n > 6) add("Structure","warn",`${e.role||e.company||"A role"} has ${n} bullets. Six is plenty; cut the weakest.`);
+  });
+  if(sections().some(s=>s.type==="lines" && /skill/i.test(s.title) && !sectionIsEmpty(s)))
+    add("Structure","pass","Skills section present — that's where keyword matching usually lands.");
+  else
+    add("Structure","warn","No skills section — this is where keyword matching usually happens.");
+  if(words > TWO_PAGE_WORDS) add("Structure","warn",`${words} words. Over roughly ${TWO_PAGE_WORDS} you're onto page three.`);
+  else if(words) add("Structure","pass",`${words} words — inside two pages.`);
+
+  /* ---- content ---- */
+  if(bullets.length){
+    const long = bullets.filter(b=>b.length>LONG_BULLET_CHARS);
+    if(long.length) add("Content","warn",`${long.length} bullet${long.length>1?"s run":" runs"} past two lines. Cut to one idea each.`);
+
+    const noNum = bullets.filter(b=>!/\d/.test(b));
+    if(noNum.length/bullets.length > .6)
+      add("Content","warn",`${noNum.length} of ${bullets.length} bullets have no number. Scope or result, pick one.`);
+    else if(noNum.length===0) add("Content","pass","Every bullet carries a number.");
+
+    const weak = bullets.filter(b=>FILLER.some(w=>b.toLowerCase().includes(w)));
+    if(weak.length) add("Content","warn",`${weak.length} bullet${weak.length>1?"s use":" uses"} filler ("${FILLER.find(w=>weak[0].toLowerCase().includes(w))}"). Say what you did instead.`);
+
+    const soft = bullets.filter(b=>!STRONG_OPENER.test(b.trim()));
+    if(soft.length) add("Content","warn",`${soft.length} bullet${soft.length>1?"s don't":" doesn't"} open with a strong past-tense verb.`);
+    else add("Content","pass","Every bullet opens with an action verb.");
+
+    const over = bullets.filter(b=>b.length>MAX_BULLET_CHARS && b.length<=LONG_BULLET_CHARS);
+    if(over.length) add("Content","warn",`${over.length} bullet${over.length>1?"s are":" is"} just over ${MAX_BULLET_CHARS} characters.`);
+  }
+  const summarySection = sections().find(s=>s.type==="text" && !sectionIsEmpty(s));
+  if(summarySection){
+    const sw = activeText(summarySection).split(/\s+/).filter(Boolean).length;
+    if(sw > 60) add("Content","warn",`${summarySection.title} runs ${sw} words. Two sentences reads better.`);
+  }
+
+  /* ---- ats ---- */
+  const tpl = TEMPLATES[S.design.template];
+  if(tpl && !tpl.safe) add("ATS","fail",`The ${tpl.label} template is two-column. Some parsers read it out of order — use ATS plain for uploads.`);
+  else add("ATS","pass","Single column, real selectable text, no tables or text boxes.");
+  const odd = filled.filter(s=>!isStandard(s.title));
+  if(odd.length) add("ATS","warn",`Non-standard heading${odd.length>1?"s":""}: ${odd.map(s=>s.title).join(", ")}. Renders fine; a parser may not know where to file it.`);
+
+  const flat = Object.values(g).flat();
+  const penalty = flat.reduce((n,x)=>n + (x.level==="fail"?9:x.level==="warn"?4:0), 0);
+  return { score: Math.max(0, 100 - penalty), groups: g };
 }
 
+function parserCheck(){
+  const { score, groups } = analyse();
+  const body = Object.entries(groups).filter(([,v])=>v.length).map(([name,items])=>
+    `<div class="ck-group"><h5>${esc(name)}</h5><ul>${
+      items.map(i=>`<li class="${i.level==="pass"?"pass":"warn"}${i.level==="fail"?" bad":""}">${esc(i.text)}</li>`).join("")
+    }</ul></div>`).join("");
+  document.getElementById("check").innerHTML =
+    `<h4>Content check · runs locally<span class="ck-score" data-band="${score>=85?"good":score>=65?"ok":"low"}">${score}<small>/100</small></span></h4>${body}`;
+}
 /* ============================ panels ============================ */
 function banner(){
   if(S.error) return `<div class="banner err">${esc(S.error)}</div>`;
@@ -616,30 +912,90 @@ function banner(){
   return "";
 }
 
-function panelProfile(){
-  const p=S.profile, c=p.contact;
-  const roles = p.experience.map((r,i)=>`
-    <div class="role">
-      <div class="role-head">
-        <span class="n">ROLE ${String(i+1).padStart(2,"0")}</span>
-        <span>
-          ${i>0?`<button class="btn ghost sm" data-act="up" data-id="${r.id}">↑</button>`:""}
-          <button class="btn ghost sm" data-act="del" data-id="${r.id}">Remove</button>
-        </span>
-      </div>
-      <div class="row">
-        <div><label>Title</label><input type="text" data-f="role" data-id="${r.id}" value="${esc(r.role)}"></div>
-        <div><label>Company</label><input type="text" data-f="company" data-id="${r.id}" value="${esc(r.company)}"></div>
-      </div>
-      <div class="row-3">
-        <div><label>Start</label><input type="text" data-f="start" data-id="${r.id}" value="${esc(r.start)}" placeholder="03/2022"></div>
-        <div><label>End</label><input type="text" data-f="end" data-id="${r.id}" value="${esc(r.end)}" placeholder="Present"></div>
-        <div><label>Location</label><input type="text" data-f="location" data-id="${r.id}" value="${esc(r.location)}"></div>
-      </div>
-      <label>Bullets — one per line</label>
-      <textarea rows="5" data-f="bullets" data-id="${r.id}" placeholder="Rebuilt the checkout flow, cutting drop-off from 31% to 19% across 40k monthly sessions.">${esc(r.bullets)}</textarea>
-    </div>`).join("");
+function designPanel(){
+  return `
+  <div class="panel">
+    <h3>Design</h3>
+    <p class="hint">Changes how the page prints, never what it says. <b>ATS plain</b> is the safe upload; the others trade parseability for looks, and the check below tells you when you've crossed that line.</p>
+    <div class="tpl-grid">
+      ${Object.entries(TEMPLATES).map(([key,t])=>`
+        <button class="tpl" data-act="tpl" data-id="${key}" aria-pressed="${S.design.template===key}">
+          <span class="tpl-name">${esc(t.label)}${t.safe?"":' <span class="tpl-warn">not ATS-safe</span>'}</span>
+          <span class="tpl-note">${esc(t.note)}</span>
+        </button>`).join("")}
+    </div>
+    <label>Accent</label>
+    <div class="swatches">
+      ${ACCENTS.map(a=>`<button class="sw" data-act="accent" data-id="${a}" style="background:${a}" aria-pressed="${S.design.accent===a}" aria-label="Accent ${a}"></button>`).join("")}
+    </div>
+    <label>Density</label>
+    <div class="seg">
+      ${["normal","tight"].map(d=>`<button class="btn sm ${S.design.density===d?"solid":"ghost"}" data-act="density" data-id="${d}">${d[0].toUpperCase()+d.slice(1)}</button>`).join("")}
+    </div>
+  </div>`;
+}
 
+function entryCard(section, e, i){
+  return `
+  <div class="role">
+    <div class="role-head">
+      <span class="n">${String(i+1).padStart(2,"0")}</span>
+      <span>
+        ${i>0?`<button class="btn ghost sm" data-act="entryUp" data-sec="${section.id}" data-id="${e.id}" aria-label="Move up">↑</button>`:""}
+        <button class="btn ghost sm" data-act="entryDel" data-sec="${section.id}" data-id="${e.id}">Remove</button>
+      </span>
+    </div>
+    <div class="row">
+      <div><label>Title</label><input type="text" data-f="role" data-id="${e.id}" value="${esc(e.role)}"></div>
+      <div><label>Company</label><input type="text" data-f="company" data-id="${e.id}" value="${esc(e.company)}"></div>
+    </div>
+    <div class="row-3">
+      <div><label>Start</label><input type="text" data-f="start" data-id="${e.id}" value="${esc(e.start)}" placeholder="03/2022"></div>
+      <div><label>End</label><input type="text" data-f="end" data-id="${e.id}" value="${esc(e.end)}" placeholder="Present"></div>
+      <div><label>Location</label><input type="text" data-f="location" data-id="${e.id}" value="${esc(e.location)}"></div>
+    </div>
+    <label>Bullets — one per line</label>
+    <textarea rows="5" data-f="bullets" data-id="${e.id}" placeholder="Rebuilt the checkout flow, cutting drop-off from 31% to 19% across 40k monthly sessions.">${esc(e.bullets)}</textarea>
+    ${lines(e.bullets).length?`<button class="btn ghost sm" data-act="polish" data-id="${e.id}" style="margin-top:8px">Tighten these bullets</button>`:""}
+  </div>`;
+}
+
+function sectionBody(s){
+  if(s.type==="text")
+    return `<textarea rows="3" data-stext="${s.id}" placeholder="Two or three lines at most.">${esc(s.text)}</textarea>`;
+  if(s.type==="entries")
+    return `${s.entries.map((e,i)=>entryCard(s,e,i)).join("") || `<div class="empty">No entries yet.</div>`}
+      <button class="btn" data-act="entryAdd" data-id="${s.id}" style="margin-top:10px">Add an entry</button>`;
+  return `
+    <label>Format</label>
+    <select data-slayout="${s.id}">
+      ${Object.entries(LINE_LAYOUTS).map(([k,v])=>`<option value="${k}"${s.layout===k?" selected":""}>${esc(v)}</option>`).join("")}
+    </select>
+    <label style="margin-top:9px">One per line${s.layout==="plain"?"":", parts split by |"}</label>
+    <textarea rows="4" data-sraw="${s.id}" placeholder="${esc(hintFor(s))}">${esc(s.raw)}</textarea>`;
+}
+
+function sectionCard(s, i, total){
+  const open = !S.collapsed[s.id];
+  return `
+  <div class="sec" data-drag="${s.id}" draggable="true" data-open="${open?1:0}">
+    <div class="sec-head">
+      <span class="grip" aria-hidden="true">⠿</span>
+      <input class="sec-title" type="text" data-stitle="${s.id}" value="${esc(s.title)}" aria-label="Section heading">
+      ${isStandard(s.title)?"":`<span class="badge warn" title="Not a heading most parsers know">non-standard</span>`}
+      <span class="sec-acts">
+        ${i>0?`<button class="btn ghost sm" data-act="secUp" data-id="${s.id}" aria-label="Move section up">↑</button>`:""}
+        ${i<total-1?`<button class="btn ghost sm" data-act="secDown" data-id="${s.id}" aria-label="Move section down">↓</button>`:""}
+        <button class="btn ghost sm" data-act="secToggle" data-id="${s.id}" aria-expanded="${open}">${open?"–":"+"}</button>
+        <button class="btn ghost sm" data-act="secDel" data-id="${s.id}">Remove</button>
+      </span>
+    </div>
+    ${open?`<div class="sec-body">${sectionBody(s)}</div>`:""}
+  </div>`;
+}
+
+function panelProfile(){
+  const c = S.profile.contact;
   return `
   ${banner()}
   <div class="panel">
@@ -650,7 +1006,7 @@ function panelProfile(){
       <button class="btn" id="doImport">Import into profile</button>
       <button class="btn ghost" id="doGaps">Ask me what's missing</button>
     </div>
-    ${S.questions?`<div style="margin-top:12px"><label>Answer these, then add the detail above</label><ul class="fixes">${S.questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:""}
+    ${S.questions?`<div style="margin-top:12px"><label>Answer these, then add the detail below</label><ul class="fixes">${S.questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:""}
   </div>
 
   <div class="panel">
@@ -667,34 +1023,25 @@ function panelProfile(){
       <div><label>Location</label><input type="text" data-c="location" value="${esc(c.location)}" placeholder="Berlin, DE"></div>
       <div><label>Links</label><input type="text" data-c="links" value="${esc(c.links)}" placeholder="linkedin.com/in/you"></div>
     </div>
-    <label>Summary — optional, three lines at most</label>
-    <textarea rows="3" data-p="summary">${esc(p.summary)}</textarea>
   </div>
 
-  <div class="panel">
-    <h3>Experience</h3>
-    ${roles || `<div class="empty">No roles yet.<br>Add one below, or paste an old resume above.</div>`}
-    <button class="btn" id="addRole" style="margin-top:10px">Add a role</button>
-  </div>
+  ${designPanel()}
 
   <div class="panel">
-    <h3>Skills</h3>
-    <p class="hint">One group per line, as <b>Category: item, item, item</b>. Groups parse cleanly and read fast.</p>
-    <textarea rows="4" data-p="skillsRaw" placeholder="Languages: Python, Go, TypeScript
-Infrastructure: AWS, Terraform, Kubernetes">${esc(p.skillsRaw)}</textarea>
-  </div>
-
-  <div class="panel">
-    <h3>Education &amp; projects</h3>
-    <label>Education — one per line, parts split by |</label>
-    <textarea rows="3" data-p="educationRaw" placeholder="TU Berlin | BSc Computer Science | 2019">${esc(p.educationRaw)}</textarea>
-    <label>Projects — one per line, parts split by |</label>
-    <textarea rows="3" data-p="projectsRaw" placeholder="Ledger | Double-entry bookkeeping library, 900 stars | github.com/you/ledger">${esc(p.projectsRaw)}</textarea>
+    <h3>Sections</h3>
+    <p class="hint">Drag to reorder, rename the heading, or drop the ones you don't need. Order here is the order on the page.</p>
+    ${sections().map((s,i)=>sectionCard(s,i,sections().length)).join("")}
+    <label style="margin-top:14px">Add a section</label>
+    <div class="seg">
+      <select id="presetSel" aria-label="Section to add">
+        ${SECTION_PRESETS.map((p,i)=>`<option value="${i}">${esc(p.label)}</option>`).join("")}
+      </select>
+      <button class="btn" id="addSection">Add</button>
+    </div>
   </div>`;
 }
-
 function panelBullets(){
-  const roleOpts = S.profile.experience.map(r=>`<option value="${r.id}">${esc(r.role||"Untitled")} — ${esc(r.company)}</option>`).join("");
+  const roleOpts = allEntries().map(e=>`<option value="${e.id}">${esc(e.role||"Untitled")} — ${esc(e.company)}</option>`).join("");
   return `
   ${banner()}
   <div class="panel">
@@ -712,7 +1059,7 @@ function panelBullets(){
     ${S.variants.bullets.map((b,i)=>`
       <div class="variant">${esc(b)}
         <div class="acts">
-          ${S.profile.experience.length?`<select data-vsel="${i}" style="font-size:11px;padding:4px;border:1.5px solid var(--edge);border-radius:3px;max-width:190px">${roleOpts}</select>
+          ${allEntries().length?`<select data-vsel="${i}" style="font-size:11px;padding:4px;border:1.5px solid var(--edge);border-radius:3px;max-width:190px">${roleOpts}</select>
           <button class="btn sm" data-act="addBullet" data-i="${i}">Add to role</button>`:`<span class="hint" style="margin:0">Add a role in Profile to file this.</span>`}
           <button class="btn ghost sm" data-act="copyBullet" data-i="${i}">Copy</button>
         </div>
@@ -861,13 +1208,14 @@ document.getElementById("flip").onclick = ()=>{
 };
 
 document.getElementById("tools").addEventListener("input", e=>{
-  const el=e.target;
-  if(el.dataset.c){ S.profile.contact[el.dataset.c]=el.value; renderPaper(); parserCheck(); save(); }
-  else if(el.dataset.p){ S.profile[el.dataset.p]=el.value; renderPaper(); parserCheck(); save(); }
-  else if(el.dataset.f){
-    const r=S.profile.experience.find(x=>x.id===el.dataset.id);
-    if(r){ r[el.dataset.f]=el.value; renderPaper(); parserCheck(); save(); }
-  }
+  const el=e.target, d=el.dataset;
+  /* Cheap path only: a full render() here would blow away focus mid-typing. */
+  const cheap = ()=>{ renderPaper(); parserCheck(); save(); };
+  if(d.c){ S.profile.contact[d.c]=el.value; cheap(); }
+  else if(d.stext){  const s=sectionById(d.stext);  if(s){ s.text=el.value;  cheap(); } }
+  else if(d.sraw){   const s=sectionById(d.sraw);   if(s){ s.raw=el.value;   cheap(); } }
+  else if(d.stitle){ const s=sectionById(d.stitle); if(s){ s.title=el.value; cheap(); } }
+  else if(d.f){      const en=findEntry(d.id);      if(en){ en[d.f]=el.value; cheap(); } }
   else if(el.id==="jd"||el.id==="jd2"){ S.jd=el.value; save(); }
   else if(el.id==="notes"){ S.notesDraft=el.value; }
   else if(el.id==="docCompany"){ S.docDraft.company=el.value; }
@@ -875,13 +1223,16 @@ document.getElementById("tools").addEventListener("input", e=>{
 });
 
 document.getElementById("tools").addEventListener("change", e=>{
-  const id = e.target.dataset.status;
-  if(!id) return;
-  const doc = S.documents.find(d=>d.id===id);
-  if(!doc) return;
-  doc.status = e.target.value;
-  doc.updatedAt = nowISO();
-  save(); render();
+  const d = e.target.dataset;
+  if(d.slayout){
+    const s = sectionById(d.slayout);
+    if(s){ s.layout = e.target.value; save(); render(); }
+    return;
+  }
+  if(d.status){
+    const doc = S.documents.find(x=>x.id===d.status);
+    if(doc){ doc.status = e.target.value; doc.updatedAt = nowISO(); save(); render(); }
+  }
 });
 
 document.getElementById("backupFile").addEventListener("change", async e=>{
@@ -901,24 +1252,85 @@ document.getElementById("tools").addEventListener("click", async e=>{
   const b=e.target.closest("button"); if(!b) return;
   const act=b.dataset.act;
 
-  if(b.id==="addRole"){
-    S.profile.experience.push({id:uid(),role:"",company:"",start:"",end:"",location:"",bullets:""});
-    save(); render(); return;
+  /* ---- sections ---- */
+  if(b.id==="addSection"){
+    const preset = SECTION_PRESETS[Number(document.getElementById("presetSel").value)];
+    if(preset){ sections().push(sectionFromPreset(preset)); save(); render(); }
+    return;
   }
-  if(act==="del"){ S.profile.experience=S.profile.experience.filter(r=>r.id!==b.dataset.id); save(); render(); return; }
-  if(act==="up"){
-    const i=S.profile.experience.findIndex(r=>r.id===b.dataset.id);
-    [S.profile.experience[i-1],S.profile.experience[i]]=[S.profile.experience[i],S.profile.experience[i-1]];
-    save(); render(); return;
+  if(act==="secUp"||act==="secDown"){
+    const list = sections();
+    const i = list.findIndex(s=>s.id===b.dataset.id);
+    const j = act==="secUp" ? i-1 : i+1;
+    if(i>=0 && j>=0 && j<list.length){
+      [list[i],list[j]]=[list[j],list[i]];
+      save(); render();
+    }
+    return;
   }
+  if(act==="secToggle"){ S.collapsed[b.dataset.id]=!S.collapsed[b.dataset.id]; render(); return; }
+  if(act==="secDel"){
+    const s = sectionById(b.dataset.id);
+    if(s && confirm(`Remove the ${s.title} section and everything in it? There's no undo.`)){
+      S.profile.sections = sections().filter(x=>x.id!==s.id);
+      save(); render();
+    }
+    return;
+  }
+  if(act==="entryAdd"){
+    const s = sectionById(b.dataset.id);
+    if(s && s.type==="entries"){ s.entries.push(blankEntry()); save(); render(); }
+    return;
+  }
+  if(act==="entryDel"){
+    const s = sectionById(b.dataset.sec);
+    if(s){ s.entries = s.entries.filter(en=>en.id!==b.dataset.id); save(); render(); }
+    return;
+  }
+  if(act==="entryUp"){
+    const s = sectionById(b.dataset.sec);
+    if(s){
+      const i = s.entries.findIndex(en=>en.id===b.dataset.id);
+      if(i>0){ [s.entries[i-1],s.entries[i]]=[s.entries[i],s.entries[i-1]]; save(); render(); }
+    }
+    return;
+  }
+
+  /* ---- design ---- */
+  if(act==="tpl"){     S.design.template=b.dataset.id; save(); render(); return; }
+  if(act==="accent"){  S.design.accent=b.dataset.id;   save(); render(); return; }
+  if(act==="density"){ S.design.density=b.dataset.id;  save(); render(); return; }
+
+  /* ---- tighten one entry's bullets in place ---- */
+  if(act==="polish"){
+    const en = findEntry(b.dataset.id);
+    if(!en) return;
+    const src = lines(en.bullets);
+    if(!src.length) return;
+    await run("Tightening…", async ()=>{
+      const out = await askJSON(
+`Tighten these resume bullets. Same facts, same numbers, fewer words. Cut filler and passive openers, lead each with a past-tense verb. Do not merge, add, or drop bullets — return exactly ${src.length}, in the same order.
+${RULES}
+Each bullet: one sentence, under ${MAX_BULLET_CHARS} characters, no first person.
+
+Shape: {"bullets":["",""]}
+
+BULLETS:
+${src.map(x=>"- "+x).join("\n")}`);
+      if(Array.isArray(out.bullets) && out.bullets.length) en.bullets = out.bullets.join("\n");
+      save();
+    });
+    return;
+  }
+
   if(act==="copyBullet"){
     try{ await navigator.clipboard.writeText(S.variants.bullets[b.dataset.i]); flash("Copied"); }catch(err){ flash("Clipboard blocked"); }
     return;
   }
   if(act==="addBullet"){
     const sel=document.querySelector(`[data-vsel="${b.dataset.i}"]`);
-    const r=S.profile.experience.find(x=>x.id===sel.value);
-    if(r){ r.bullets=(r.bullets?r.bullets+"\n":"")+S.variants.bullets[b.dataset.i]; save(); flash("Added to "+(r.role||"role")); render(); }
+    const en=findEntry(sel.value);
+    if(en){ en.bullets=(en.bullets?en.bullets+"\n":"")+S.variants.bullets[b.dataset.i]; save(); flash("Added to "+(en.role||"role")); render(); }
     return;
   }
 
@@ -955,14 +1367,17 @@ Shape:
 TEXT:
 ${txt}`);
       S.profile.contact={...S.profile.contact,...(out.contact||{})};
-      if(out.summary) S.profile.summary=out.summary;
-      (out.experience||[]).forEach(r=>S.profile.experience.push({
-        id:uid(), role:r.role||"", company:r.company||"", start:r.start||"", end:r.end||"",
-        location:r.location||"", bullets:(r.bullets||[]).join("\n")
-      }));
-      if((out.education||[]).length) S.profile.educationRaw=(out.education||[]).join("\n");
-      if((out.skills||[]).length) S.profile.skillsRaw=(out.skills||[]).join("\n");
-      if((out.projects||[]).length) S.profile.projectsRaw=(out.projects||[]).join("\n");
+      if(out.summary) ensureSection("Summary","text").text = out.summary;
+      if((out.experience||[]).length){
+        const target = entrySections()[0] || ensureSection("Experience","entries");
+        (out.experience||[]).forEach(r=>target.entries.push({
+          ...blankEntry(), role:r.role||"", company:r.company||"", start:r.start||"", end:r.end||"",
+          location:r.location||"", bullets:(r.bullets||[]).join("\n")
+        }));
+      }
+      if((out.education||[]).length) ensureSection("Education","lines","pipe").raw   = out.education.join("\n");
+      if((out.skills||[]).length)    ensureSection("Skills","lines","plain").raw     = out.skills.join("\n");
+      if((out.projects||[]).length)  ensureSection("Projects","lines","bullet").raw  = out.projects.join("\n");
       save();
     });
     return;
@@ -1007,7 +1422,7 @@ ${notes}`);
   if(b.id==="doTailor"){
     const jd=(document.getElementById("jd")||{}).value?.trim()||S.jd.trim();
     if(!jd){ S.error="Paste the job posting first."; render(); return; }
-    if(!S.profile.experience.length){ S.error="Add at least one role in Profile first."; render(); return; }
+    if(!allEntries().length){ S.error="Add at least one role in Profile first."; render(); return; }
     S.jd=jd; save();
 
     await run("Reading the posting…", async ()=>{
@@ -1023,40 +1438,44 @@ ${jd}`);
       /* Prefill the save form, but never overwrite names on a version already open. */
       if(!S.activeDocId) S.docDraft = { company:kw.company||"", role:kw.role||"" };
 
+      /* One call per entry, not one for the whole resume: it bounds each
+         response, isolates a failure to one role, and drives the progress line. */
       const bullets={};
-      for(const r of S.profile.experience){
-        S.busy = `Tailoring ${r.role||r.company||"role"}…`; render();
-        const src=lines(r.bullets);
-        if(!src.length){ bullets[r.id]=[]; continue; }
-        const out = await askJSON(
+      for(const sec of entrySections()){
+        for(const en of sec.entries){
+          S.busy = `Tailoring ${en.role||en.company||"role"}…`; render();
+          const src=lines(en.bullets);
+          if(!src.length){ bullets[en.id]=[]; continue; }
+          const out = await askJSON(
 `Rewrite this role's bullets for the posting below. Keep the 3-5 most relevant, drop the rest, order them most-relevant first.
 ${RULES}
-Mirror the posting's vocabulary only where the source already describes that same thing. Keep every existing number exactly as written. One sentence each, under 210 characters, past-tense verb first.
+Mirror the posting's vocabulary only where the source already describes that same thing. Keep every existing number exactly as written. One sentence each, under ${MAX_BULLET_CHARS} characters, past-tense verb first.
 
 Shape: {"bullets":["",""]}
 
-ROLE: ${r.role} at ${r.company}
+ROLE: ${en.role} at ${en.company}
 SOURCE BULLETS:
 ${src.map(x=>"- "+x).join("\n")}
 
 POSTING:
 ${jd}`);
-        bullets[r.id]=out.bullets||src;
+          bullets[en.id]=out.bullets||src;
+        }
       }
 
-      let summary=S.profile.summary;
-      if(S.profile.summary){
-        S.busy="Adjusting the summary…"; render();
+      const texts={};
+      for(const sec of sections().filter(s=>s.type==="text" && s.text.trim())){
+        S.busy=`Adjusting ${sec.title.toLowerCase()}…`; render();
         const out=await askJSON(
-`Rewrite this summary for the posting. Two sentences maximum. Only facts already present.
+`Rewrite this ${sec.title} section so it lands for the posting below. Two sentences maximum, written about the candidate — never about the job. Use only what the section already says; if the posting wants something the candidate has not done, leave it out rather than implying it. Do not list the posting's requirements back.
 ${RULES}
-Shape: {"summary":""}
+Shape: {"text":""}
 
-SUMMARY: ${S.profile.summary}
+${sec.title.toUpperCase()}: ${sec.text}
 POSTING: ${jd}`);
-        summary=out.summary||summary;
+        if(out.text) texts[sec.id]=out.text;
       }
-      S.tailored={bullets,summary}; S.showTailored=true;
+      S.tailored={bullets,texts}; S.showTailored=true;
     });
     return;
   }
@@ -1080,6 +1499,44 @@ ${jd}`);
     });
     return;
   }
+});
+
+/* Section reorder by drag. The ↑/↓ buttons do the same job for keyboards, so
+   this stays a convenience rather than the only way through. */
+let dragSectionId = null;
+const toolsEl = document.getElementById("tools");
+
+toolsEl.addEventListener("dragstart", e=>{
+  if(e.target.closest("input,textarea,select,button")){ e.preventDefault(); return; }
+  const card = e.target.closest("[data-drag]");
+  if(!card) return;
+  dragSectionId = card.dataset.drag;
+  e.dataTransfer.effectAllowed = "move";
+  card.classList.add("dragging");
+});
+toolsEl.addEventListener("dragend", e=>{
+  const card = e.target.closest("[data-drag]");
+  if(card) card.classList.remove("dragging");
+  dragSectionId = null;
+});
+toolsEl.addEventListener("dragover", e=>{
+  if(!dragSectionId) return;
+  const over = e.target.closest("[data-drag]");
+  if(!over || over.dataset.drag===dragSectionId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+});
+toolsEl.addEventListener("drop", e=>{
+  const over = e.target.closest("[data-drag]");
+  if(!dragSectionId || !over) return;
+  e.preventDefault();
+  const list = sections();
+  const from = list.findIndex(s=>s.id===dragSectionId);
+  const to   = list.findIndex(s=>s.id===over.dataset.drag);
+  dragSectionId = null;
+  if(from<0 || to<0 || from===to) return;
+  list.splice(to, 0, list.splice(from,1)[0]);
+  save(); render();
 });
 
 /* ============================ boot ============================ */
