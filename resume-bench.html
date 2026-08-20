@@ -202,6 +202,11 @@
   .sw{width:26px;height:26px;border-radius:3px;border:2px solid transparent;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.85);cursor:pointer;padding:0}
   .sw[aria-pressed="true"]{border-color:var(--ink)}
 
+  .btn.danger{border-color:var(--gap);color:var(--gap);background:transparent}
+  .btn.danger:hover{background:var(--gap);color:#fff;border-color:var(--gap)}
+  .danger-zone{margin-top:13px;padding-top:12px;border-top:1px dashed var(--mat-line)}
+  .danger-zone .hint{margin-bottom:10px}
+
   /* ---------- content check ---------- */
   .check h4{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .ck-score{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
@@ -408,7 +413,7 @@ let S = {
   jd:"", mode:"profile",
   keywords:[], tailored:null, showTailored:true,
   score:null, variants:null, questions:null,
-  collapsed:{}, busy:"", error:""
+  collapsed:{}, confirmReset:false, busy:"", error:""
 };
 
 /* ---------------------------- reading the model ---------------------------- */
@@ -573,6 +578,22 @@ function exportBackup(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 30000);
   flash("Backup downloaded");
+}
+
+/* Back to a blank bench. Deliberately does not remove the storage keys — it
+   writes the defaults over them, which is the same thing from the app's side
+   and keeps `store` at the two methods a backend would have to implement. */
+function resetEverything(){
+  S.profile     = clone(BLANK);
+  S.design      = {...DEFAULT_DESIGN};
+  S.documents   = [];
+  S.activeDocId = null;
+  S.docDraft    = { company:"", role:"" };
+  S.jd = ""; S.tailored = null; S.keywords = []; S.score = null;
+  S.variants = null; S.questions = null;
+  S.collapsed = {}; S.confirmReset = false; S.error = "";
+  save();
+  flash("Everything reset");
 }
 
 /* Restore replaces rather than merges — predictable beats clever when there is no undo. */
@@ -1161,9 +1182,19 @@ function panelSaved(){
   <div class="panel">
     <h3>Backup</h3>
     <p class="hint">All of this lives in this browser only. Clearing site data wipes it — export a file to keep a copy, or to carry everything to another machine.</p>
-    <div style="display:flex;gap:7px;flex-wrap:wrap">
+    <div class="seg">
       <button class="btn" id="doExport">Export backup</button>
       <button class="btn ghost" id="doImport">Restore from file</button>
+    </div>
+    <div class="danger-zone">
+      ${S.confirmReset ? `
+        <p class="hint">Deletes your profile, ${S.documents.length} saved resume${S.documents.length===1?"":"s"}, the posting and the design. There's no undo. Take a backup first if you want a way back — or skip it.</p>
+        <div class="seg">
+          <button class="btn danger" id="resetGo">Delete everything</button>
+          <button class="btn" id="resetExport">Export backup first</button>
+          <button class="btn ghost" id="resetCancel">Cancel</button>
+        </div>`
+      : `<button class="btn ghost sm" id="resetAsk">Reset everything</button>`}
     </div>
   </div>`;
 }
@@ -1193,7 +1224,7 @@ function render(){
 
 /* ============================ events ============================ */
 document.querySelectorAll(".modes button").forEach(b=>{
-  b.onclick = ()=>{ S.mode=b.dataset.mode; S.error=""; render(); };
+  b.onclick = ()=>{ S.mode=b.dataset.mode; S.error=""; S.confirmReset=false; render(); };
 });
 document.getElementById("print").onclick = ()=>window.print();
 document.getElementById("copyTxt").onclick = async ()=>{
@@ -1345,6 +1376,10 @@ ${src.map(x=>"- "+x).join("\n")}`);
     return;
   }
   if(b.id==="doExport"){ exportBackup(); return; }
+  if(b.id==="resetAsk"){    S.confirmReset=true;  render(); return; }
+  if(b.id==="resetCancel"){ S.confirmReset=false; render(); return; }
+  if(b.id==="resetExport"){ exportBackup(); return; }   /* stays open — the export is optional, not a gate */
+  if(b.id==="resetGo"){     resetEverything(); render(); return; }
   if(b.id==="doImport"){ document.getElementById("backupFile").click(); return; }
 
   /* ---- import ---- */
