@@ -151,10 +151,6 @@
   .about{display:grid;grid-template-columns:1fr 300px;gap:44px;align-items:start}
   .about p{font-size:15.5px;color:var(--ink-2);max-width:60ch}
   .about p strong{color:var(--ink);font-weight:500}
-  .work{list-style:none;margin:22px 0 0;padding:0}
-  .work li{padding:12px 0;border-top:1px solid var(--edge);font-size:14.5px;color:var(--ink-2)}
-  .work b{color:var(--ink);font-weight:700;font-size:15px}
-  .work .role{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
   .card{border:1.5px solid var(--ink);border-radius:4px;background:var(--paper);padding:20px;position:sticky;top:22px}
   .card h3{margin:0 0 3px;font-size:17px}
   .card .avail{font-size:13.5px;color:var(--ink-2);margin:0 0 15px}
@@ -348,27 +344,6 @@ node proxy.mjs</pre>
             written and nothing else</strong>. The parts that have to be trustworthy — the document
             structure, the ATS checks, the master profile — are plain code that a model never touches.
           </p>
-          <ul class="work">
-            <li>
-              <b>PortfolioSync</b> <span class="role">— CTO</span><br>
-              Syncs developer portfolios by opening pull requests against your own repo. GitHub OAuth,
-              JWT sessions, encrypted tokens; React 19 and Vite over Node, Express and SQLite.
-            </li>
-            <li>
-              <b>GIREAPP</b> <span class="role">— Backend</span><br>
-              An EdTech API in Express and TypeScript. JWT over HTTP-only cookies, full verification
-              and reset flows, shared Zod schemas, ten entities modelled in PostgreSQL through Prisma.
-            </li>
-            <li>
-              <b>Agrilink</b> <span class="role">— Frontend lead, 2nd place</span><br>
-              A two-sided marketplace for Nigerian farmers and buyers, built with a team of four at the
-              INVENTORS COMMUNITY hackathon. React and TypeScript against NestJS, with Socket.IO chat.
-            </li>
-            <li>
-              <b>The Peoples Hub</b> <span class="role">— Solo</span><br>
-              A polling application on Django REST and MySQL, with a React front end. Deployed.
-            </li>
-          </ul>
         </div>
 
         <div class="card">
