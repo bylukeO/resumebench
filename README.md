@@ -70,5 +70,6 @@ proxy isn't running.
 
 ## License
 
-No license is granted. The source is here for reference; it isn't licensed for
-reuse or redistribution.
+[GNU AGPL-3.0](LICENSE). Clone it, run it, and use it to build your resume
+freely. If you distribute a modified version — or host one as a network service —
+that version has to stay open source under the same license.
