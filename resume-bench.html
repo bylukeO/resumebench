@@ -1,3 +1,5 @@
+<meta charset="UTF-8">
+<title>resumebench</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -124,6 +126,10 @@
     padding:54px 58px 64px;font-family:var(--doc);color:#111;font-size:13.4px;line-height:1.45;
   }
   .paper h1{font-size:23px;margin:0 0 3px;letter-spacing:.01em;font-weight:700}
+  .paper .namerow{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:3px}
+  .paper .namerow h1{margin:0}
+  .paper .headline{font-size:13.6px;color:#3a3a3a;border-left:1px solid #c4c4c4;padding-left:11px}
+  .paper[data-template="modern"] .headline{color:var(--accent);border-left-color:currentColor}
   .paper .contact{font-size:12.2px;color:#333;margin-bottom:19px}
   .paper h2{
     font-size:12.4px;text-transform:uppercase;letter-spacing:.09em;margin:20px 0 7px;
@@ -136,6 +142,10 @@
   .paper li{margin-bottom:3px}
   .paper .skill-line{margin-bottom:3px}
   .paper .placeholder{color:#9aa;font-style:italic}
+  /* Clickable, but styled as plain text — the address is already visible, so an
+     underline would only add noise to the printed document. */
+  .paper a{color:inherit;text-decoration:none}
+  .paper a:hover{text-decoration:underline}
 
   .hl{
     background:linear-gradient(100deg,rgba(255,216,77,0) 0%,rgba(255,216,77,.9) 3.5%,rgba(255,216,77,.72) 96.5%,rgba(255,216,77,0) 100%);
@@ -186,6 +196,14 @@
   .sec-acts{display:flex;gap:4px;flex-shrink:0}
   .sec-body{padding:11px 12px 13px}
   .seg{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+
+  .drop{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    border:1.5px dashed var(--edge);border-radius:4px;padding:12px;margin-bottom:12px;
+    font-size:12.5px;color:var(--ink-2);
+  }
+  .drop.over{border-color:var(--ink);background:#FFFCF0}
+  .drop b{color:var(--ink);font-weight:500}
 
   /* ---------- design picker ---------- */
   .tpl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;margin-bottom:13px}
@@ -287,6 +305,7 @@
     </section>
   </main>
   <input type="file" id="backupFile" accept="application/json,.json" hidden>
+  <input type="file" id="resumeFile" accept=".docx,.txt,.md,.markdown" hidden>
 </div>
 
 <script>
@@ -373,11 +392,15 @@ const BLANK = {
    documents key off them, so losing one would orphan every saved version. */
 function migrateProfile(raw){
   if(!raw || typeof raw!=="object") return clone(BLANK);
-  if(Array.isArray(raw.sections))
-    return { contact:{...BLANK.contact, ...(raw.contact||{})}, sections:raw.sections.map(normaliseSection) };
+  if(Array.isArray(raw.sections)){
+    const contact = {...BLANK.contact, ...(raw.contact||{})};
+    contact.links = migrateLinks(contact.links);
+    return { contact, sections:raw.sections.map(normaliseSection) };
+  }
 
   const p = clone(BLANK);
   p.contact = { ...p.contact, ...(raw.contact||{}) };
+  p.contact.links = migrateLinks(p.contact.links);
   const put = (id, patch) => { const s = p.sections.find(x=>x.id===id); if(s) Object.assign(s, patch); };
   put("summary",   { text: raw.summary || "" });
   put("experience",{ entries: (raw.experience||[]).map(e=>({ ...blankEntry(), ...e, id:e.id||uid() })) });
@@ -714,6 +737,214 @@ async function run(label, fn){
   S.busy=""; render();
 }
 
+/* ============================ .docx ingest ============================ */
+/* A .docx is a ZIP holding word/document.xml. The browser can already inflate
+   DEFLATE via DecompressionStream, so reading one needs no library — just
+   enough ZIP to pull a single known entry out of the central directory. */
+const ZIP_EOCD_SIG = 0x06054b50;
+const ZIP_CD_SIG   = 0x02014b50;
+const ZIP_LFH_SIG  = 0x04034b50;
+const ZIP_STORED   = 0;
+const ZIP_DEFLATED = 8;
+const ZIP_EOCD_MIN = 22;
+const ZIP_CD_FIXED = 46;
+const ZIP_LFH_FIXED = 30;
+const ZIP64_SENTINEL = 0xFFFFFFFF;
+const DOCX_MAIN = "word/document.xml";
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+const TEXT_EXTENSIONS = [".txt",".md",".markdown"];
+
+async function inflateRaw(bytes){
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/* The central directory is authoritative for sizes; local headers may be
+   zeroed when a writer used a trailing data descriptor. */
+function zipFindEntry(view, bytes, wanted){
+  let eocd = -1;
+  const floor = Math.max(0, bytes.length - ZIP_EOCD_MIN - 0xFFFF);
+  for(let i = bytes.length - ZIP_EOCD_MIN; i >= floor; i--){
+    if(view.getUint32(i, true) === ZIP_EOCD_SIG){ eocd = i; break; }
+  }
+  if(eocd < 0) throw new Error("That file isn't a .docx — there's no ZIP directory in it.");
+  const count = view.getUint16(eocd + 10, true);
+  let p = view.getUint32(eocd + 16, true);
+  const dec = new TextDecoder();
+  for(let i = 0; i < count && p + ZIP_CD_FIXED <= bytes.length; i++){
+    if(view.getUint32(p, true) !== ZIP_CD_SIG) break;
+    const method     = view.getUint16(p + 10, true);
+    const compSize   = view.getUint32(p + 20, true);
+    const nameLen    = view.getUint16(p + 28, true);
+    const extraLen   = view.getUint16(p + 30, true);
+    const commentLen = view.getUint16(p + 32, true);
+    const localOff   = view.getUint32(p + 42, true);
+    const name = dec.decode(bytes.subarray(p + ZIP_CD_FIXED, p + ZIP_CD_FIXED + nameLen));
+    if(name === wanted){
+      if(compSize === ZIP64_SENTINEL || localOff === ZIP64_SENTINEL)
+        throw new Error("That .docx uses ZIP64, which this can't read. Re-save it from Word.");
+      return { method, compSize, localOff };
+    }
+    p += ZIP_CD_FIXED + nameLen + extraLen + commentLen;
+  }
+  return null;
+}
+
+async function unzipEntry(buffer, wanted){
+  const bytes = new Uint8Array(buffer);
+  const view  = new DataView(buffer);
+  const entry = zipFindEntry(view, bytes, wanted);
+  if(!entry) return null;
+  if(view.getUint32(entry.localOff, true) !== ZIP_LFH_SIG)
+    throw new Error("That .docx looks corrupted — its file table doesn't line up.");
+  const nameLen  = view.getUint16(entry.localOff + 26, true);
+  const extraLen = view.getUint16(entry.localOff + 28, true);
+  const at = entry.localOff + ZIP_LFH_FIXED + nameLen + extraLen;
+  const data = bytes.subarray(at, at + entry.compSize);
+  if(entry.method === ZIP_STORED)   return data;
+  if(entry.method === ZIP_DEFLATED) return inflateRaw(data);
+  throw new Error(`That .docx uses compression method ${entry.method}, which this can't read.`);
+}
+
+/* Word splits a sentence across as many runs as it has formatting changes, so
+   text has to be gathered by walking, not by reading one node. */
+const RUN_SKIP = ["delText","instrText","proofErr","rPr","pPr","tcPr","trPr","tblPr"];
+function runText(el){
+  let out = "";
+  for(const node of el.childNodes){
+    if(node.nodeType !== 1) continue;
+    const n = node.localName;
+    if(RUN_SKIP.includes(n)) continue;
+    if(n === "t")        out += node.textContent;
+    else if(n === "tab") out += "\t";
+    else if(n === "br" || n === "cr") out += "\n";
+    else out += runText(node);
+  }
+  return out;
+}
+
+/* Tables are read row by row rather than flattened, because plenty of resumes
+   put dates in one column and content in another — flattening interleaves them. */
+function docxToText(xml){
+  const doc = new DOMParser().parseFromString(xml, "application/xml");
+  if(doc.getElementsByTagName("parsererror").length)
+    throw new Error("Couldn't read that .docx — its document.xml didn't parse.");
+  const body = doc.getElementsByTagNameNS(W_NS, "body")[0];
+  if(!body) throw new Error("That .docx has no document body.");
+
+  const out = [];
+  const tidy = s => s.replace(/[ \t ]+/g, " ").trim();
+  const walk = parent => {
+    for(const el of parent.children){
+      const n = el.localName;
+      if(n === "p"){
+        const bullet = el.getElementsByTagNameNS(W_NS, "numPr").length > 0;
+        runText(el).split("\n").forEach((line, i) => {
+          const t = tidy(line);
+          out.push(t && bullet && i === 0 ? "- " + t : t);
+        });
+      }else if(n === "tbl"){
+        for(const tr of el.children){
+          if(tr.localName !== "tr") continue;
+          const cells = [];
+          for(const tc of tr.children){
+            if(tc.localName !== "tc") continue;
+            const t = tidy(runText(tc).replace(/\n/g, " "));
+            if(t) cells.push(t);
+          }
+          if(cells.length) out.push(cells.join(" | "));
+        }
+        out.push("");
+      }else if(n === "sdt" || n === "sdtContent"){
+        walk(el);
+      }
+    }
+  };
+  walk(body);
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+async function readDocx(file){
+  const xml = await unzipEntry(await file.arrayBuffer(), DOCX_MAIN);
+  if(!xml) throw new Error("No word/document.xml in that file — it may be a .doc renamed, or corrupted.");
+  const text = docxToText(new TextDecoder().decode(xml));
+  if(!text) throw new Error("That .docx parsed, but there was no text in it.");
+  return text;
+}
+
+/* One door for every upload, so the error names the format to use instead. */
+async function readResumeFile(file){
+  if(file.size > MAX_UPLOAD_BYTES)
+    throw new Error("That file is over 15MB. A resume shouldn't be — check you picked the right one.");
+  const name = file.name.toLowerCase();
+  if(name.endsWith(".docx")) return readDocx(file);
+  if(TEXT_EXTENSIONS.some(x => name.endsWith(x))) return file.text();
+  if(name.endsWith(".doc"))
+    throw new Error("That's the old .doc format. Open it in Word, save it as .docx, then try again.");
+  if(name.endsWith(".pdf"))
+    throw new Error("PDF isn't supported. Export a .docx from the same source, or paste the text instead.");
+  throw new Error("Upload a .docx, .txt or .md — or paste the text instead.");
+}
+
+/* ---- import: one path, whether the text was pasted or read out of a file ---- */
+async function importResumeText(txt){
+  const out = await askJSON(
+`Extract structured resume data from the text below. Use only what is written there — do not add, guess, or embellish anything.
+${RULES}
+
+Shape:
+{"contact":{"name":"","title":"","email":"","phone":"","location":"","links":["one url per entry, or \"Label | url\""]},
+ "summary":"",
+ "experience":[{"role":"","company":"","start":"MM/YYYY","end":"MM/YYYY or Present","location":"","bullets":["",""]}],
+ "education":["School | Degree | Year"],
+ "skills":["Category: a, b, c"],
+ "projects":["Name | description | link"]}
+
+TEXT:
+${txt}`);
+  const incoming = {...(out.contact||{})};
+  if("links" in incoming){
+    incoming.links = Array.isArray(incoming.links)
+      ? incoming.links.filter(Boolean).join("\n")
+      : migrateLinks(incoming.links);
+  }
+  if(!incoming.links) delete incoming.links;      // never wipe links already there
+  S.profile.contact = {...S.profile.contact, ...incoming};
+  if(out.summary) ensureSection("Summary","text").text = out.summary;
+  if((out.experience||[]).length){
+    const target = entrySections()[0] || ensureSection("Experience","entries");
+    out.experience.forEach(r=>target.entries.push({
+      ...blankEntry(), role:r.role||"", company:r.company||"", start:r.start||"", end:r.end||"",
+      location:r.location||"", bullets:(r.bullets||[]).join("\n")
+    }));
+  }
+  if((out.education||[]).length) ensureSection("Education","lines","pipe").raw  = out.education.join("\n");
+  if((out.skills||[]).length)    ensureSection("Skills","lines","plain").raw    = out.skills.join("\n");
+  if((out.projects||[]).length)  ensureSection("Projects","lines","bullet").raw = out.projects.join("\n");
+  save();
+  return (out.experience||[]).length;
+}
+
+/* Import adds to the profile rather than replacing it, so say so when there is
+   already something to add to — a silent second upload doubles every role. */
+function confirmImportAppend(){
+  const n = allEntries().length;
+  if(!n) return true;
+  return confirm(`Your profile already has ${n} ${n===1?"entry":"entries"}. Importing adds to them rather than replacing.\n\nTo start from this file alone, cancel and use Reset everything on the Saved tab first.`);
+}
+
+async function ingestResumeFile(file){
+  if(!confirmImportAppend()) return;
+  await run(`Reading ${file.name}…`, async ()=>{
+    const text = await readResumeFile(file);
+    S.importDraft = text;              // shown in the paste box, so a bad read is visible
+    S.busy = "Structuring it…"; render();
+    const roles = await importResumeText(text);
+    flash(roles ? `Imported ${roles} role${roles===1?"":"s"}` : "Imported");
+  });
+}
+
 /* ============================ resume text ============================ */
 /* The overlay is read here and nowhere else. Everything downstream — the paper,
    the plain-text copy, the analyser — goes through these two. */
@@ -738,11 +969,44 @@ function sectionIsEmpty(s){
   return !activeLines(s).length;
 }
 
+/* ---------------------------- links ----------------------------
+   One per line, either "url" or "Label | url".
+
+   The address is always rendered as visible text. Most ATS parsers read a PDF's
+   text layer and ignore its link annotations, so a bare "LinkedIn" label
+   arrives as the word "LinkedIn" and the address is simply lost. Printing the
+   address and hyperlinking it satisfies the parser and the human at once. */
+const LINK_SCHEME = /^https?:\/\//i;
+
+function parseLink(line){
+  const parts = String(line).split("|").map(x=>x.trim()).filter(Boolean);
+  if(!parts.length) return null;
+  const url   = parts[parts.length-1];
+  const label = parts.slice(0,-1).join(" ");
+  /* Anything without a scheme gets https, which also renders javascript: and
+     data: inert without needing a separate blocklist. */
+  const href  = LINK_SCHEME.test(url) ? url : "https://" + url.replace(/^\/+/,"");
+  const shown = url.replace(LINK_SCHEME,"").replace(/^www\./i,"").replace(/\/+$/,"");
+  return { href, shown, text: label ? `${label}: ${shown}` : shown };
+}
+function contactLinks(){
+  return lines(S.profile.contact.links).map(parseLink).filter(Boolean);
+}
+/* Links used to be one free-text field. Split a pipe-separated line into real
+   entries when every part looks like a URL; leave anything else alone. */
+function migrateLinks(raw){
+  const s = String(raw ?? "");
+  if(!s || s.includes("\n")) return s;
+  const parts = s.split("|").map(x=>x.trim()).filter(Boolean);
+  const looksLikeUrl = p => p.includes(".") && !/\s/.test(p);
+  return parts.length > 1 && parts.every(looksLikeUrl) ? parts.join("\n") : s;
+}
+
 function plainText(){
   const c = S.profile.contact, out = [];
   out.push(c.name||"Your Name");
   if(c.title) out.push(c.title);
-  out.push([c.email,c.phone,c.location,c.links].filter(Boolean).join(" | "));
+  out.push([c.email,c.phone,c.location,contactLinks().map(l=>l.text).join(" | ")].filter(Boolean).join(" | "));
   for(const s of sections()){
     if(sectionIsEmpty(s)) continue;
     out.push("", s.title.toUpperCase());
@@ -810,8 +1074,20 @@ function renderPaper(){
   paper.dataset.density  = design.density;
   paper.style.setProperty("--accent", design.accent);
 
-  const head = `<h1>${esc(c.name)||'<span class="placeholder">Your name</span>'}</h1>`
-    + `<div class="contact">${[c.email,c.phone,c.location,c.links].filter(Boolean).join(" &nbsp;|&nbsp; ")
+  /* Links print their address as text and carry the href too, so the parser
+     reads one and the recruiter clicks the other. */
+  const linkHTML = contactLinks()
+    .map(l => `<a href="${esc(l.href)}" rel="noreferrer noopener">${mark(l.text)}</a>`)
+    .join(" &nbsp;|&nbsp; ");
+  const contactBits = [esc(c.email), esc(c.phone), esc(c.location)].filter(Boolean);
+  if(linkHTML) contactBits.push(linkHTML);
+  /* The headline sits beside the name but stays OUT of the <h1>: parsers that
+     take the first heading as the name should get the name and nothing else. */
+  const head = `<div class="namerow">`
+    + `<h1>${esc(c.name)||'<span class="placeholder">Your name</span>'}</h1>`
+    + (c.title ? `<span class="headline">${mark(c.title)}</span>` : "")
+    + `</div>`
+    + `<div class="contact">${contactBits.join(" &nbsp;|&nbsp; ")
         || '<span class="placeholder">email · phone · city · linkedin</span>'}</div>`;
 
   const filled = sections().filter(s=>!sectionIsEmpty(s));
@@ -860,6 +1136,9 @@ function analyse(){
   if(!c.location) add("Contact","warn","No location. Recruiters filter on it.");
   if(!c.links)    add("Contact","warn","No LinkedIn or portfolio link.");
   if(c.name && c.email && c.phone && c.location && c.links) add("Contact","pass","Contact block is complete.");
+  const linkless = contactLinks().filter(l => !l.shown.includes("."));
+  if(linkless.length)
+    add("Contact","warn",`${linkless.length} link${linkless.length>1?"s have":" has"} no address in the visible text — a parser reads the text, not the hyperlink.`);
 
   /* ---- structure ---- */
   const filled = sections().filter(s=>!sectionIsEmpty(s));
@@ -999,7 +1278,7 @@ function sectionBody(s){
 function sectionCard(s, i, total){
   const open = !S.collapsed[s.id];
   return `
-  <div class="sec" data-drag="${s.id}" draggable="true" data-open="${open?1:0}">
+  <div class="sec" data-drag="${s.id}" data-open="${open?1:0}">
     <div class="sec-head">
       <span class="grip" aria-hidden="true">⠿</span>
       <input class="sec-title" type="text" data-stitle="${s.id}" value="${esc(s.title)}" aria-label="Section heading">
@@ -1021,8 +1300,13 @@ function panelProfile(){
   ${banner()}
   <div class="panel">
     <h3>Import</h3>
-    <p class="hint">Paste an old resume or loose career notes. It comes back structured — nothing invented, only what's in the text.</p>
-    <textarea id="importText" rows="5" placeholder="Paste here…"></textarea>
+    <p class="hint">Upload your master resume as a <b>.docx</b>, or paste it below. It comes back structured — nothing invented, only what's in the file.</p>
+    <div class="drop" id="dropZone">
+      <button class="btn" id="pickResume">Choose a file</button>
+      <span>or drop a <b>.docx</b> here</span>
+    </div>
+    <label>Or paste the text</label>
+    <textarea id="importText" rows="5" placeholder="Paste here…">${esc(S.importDraft||"")}</textarea>
     <div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">
       <button class="btn" id="doImport">Import into profile</button>
       <button class="btn ghost" id="doGaps">Ask me what's missing</button>
@@ -1040,10 +1324,13 @@ function panelProfile(){
       <div><label>Email</label><input type="text" data-c="email" value="${esc(c.email)}"></div>
       <div><label>Phone</label><input type="text" data-c="phone" value="${esc(c.phone)}"></div>
     </div>
-    <div class="row">
-      <div><label>Location</label><input type="text" data-c="location" value="${esc(c.location)}" placeholder="Berlin, DE"></div>
-      <div><label>Links</label><input type="text" data-c="links" value="${esc(c.links)}" placeholder="linkedin.com/in/you"></div>
-    </div>
+    <label>Location</label>
+    <input type="text" data-c="location" value="${esc(c.location)}" placeholder="Berlin, DE">
+    <label>Links — one per line, <b>Label | url</b> to name one</label>
+    <p class="hint" style="margin:0 0 7px">The address always prints as visible text: most parsers read the text and ignore the hyperlink, so a bare "LinkedIn" label would arrive with no address attached. The label is for the human reading it.</p>
+    <textarea rows="3" data-c="links" placeholder="linkedin.com/in/you
+GitHub | github.com/you
+Portfolio | you.dev">${esc(c.links)}</textarea>
   </div>
 
   ${designPanel()}
@@ -1184,7 +1471,7 @@ function panelSaved(){
     <p class="hint">All of this lives in this browser only. Clearing site data wipes it — export a file to keep a copy, or to carry everything to another machine.</p>
     <div class="seg">
       <button class="btn" id="doExport">Export backup</button>
-      <button class="btn ghost" id="doImport">Restore from file</button>
+      <button class="btn ghost" id="doRestore">Restore from file</button>
     </div>
     <div class="danger-zone">
       ${S.confirmReset ? `
@@ -1223,6 +1510,10 @@ function render(){
 }
 
 /* ============================ events ============================ */
+/* Shared by the section-reorder drag and the file drop zone. Declared here
+   because both listener groups below close over them. */
+const toolsEl = document.getElementById("tools");
+let dragSectionId = null;
 document.querySelectorAll(".modes button").forEach(b=>{
   b.onclick = ()=>{ S.mode=b.dataset.mode; S.error=""; S.confirmReset=false; render(); };
 });
@@ -1249,6 +1540,7 @@ document.getElementById("tools").addEventListener("input", e=>{
   else if(d.f){      const en=findEntry(d.id);      if(en){ en[d.f]=el.value; cheap(); } }
   else if(el.id==="jd"||el.id==="jd2"){ S.jd=el.value; save(); }
   else if(el.id==="notes"){ S.notesDraft=el.value; }
+  else if(el.id==="importText"){ S.importDraft=el.value; }
   else if(el.id==="docCompany"){ S.docDraft.company=el.value; }
   else if(el.id==="docRole"){ S.docDraft.role=el.value; }
 });
@@ -1264,6 +1556,37 @@ document.getElementById("tools").addEventListener("change", e=>{
     const doc = S.documents.find(x=>x.id===d.status);
     if(doc){ doc.status = e.target.value; doc.updatedAt = nowISO(); save(); render(); }
   }
+});
+
+document.getElementById("resumeFile").addEventListener("change", async e=>{
+  const file = e.target.files[0];
+  e.target.value = "";           // so picking the same file twice still fires
+  if(file) await ingestResumeFile(file);
+});
+
+/* Dropping a file anywhere else would navigate away from the app and lose
+   unsaved edits, so the whole window swallows drops the zone didn't take. */
+window.addEventListener("dragover", e=>e.preventDefault());
+window.addEventListener("drop", e=>e.preventDefault());
+
+toolsEl.addEventListener("dragover", e=>{
+  const zone = e.target.closest("#dropZone");
+  if(!zone || dragSectionId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "copy";
+  zone.classList.add("over");
+});
+toolsEl.addEventListener("dragleave", e=>{
+  const zone = e.target.closest("#dropZone");
+  if(zone && !zone.contains(e.relatedTarget)) zone.classList.remove("over");
+});
+toolsEl.addEventListener("drop", async e=>{
+  const zone = e.target.closest("#dropZone");
+  if(!zone || dragSectionId) return;
+  e.preventDefault();
+  zone.classList.remove("over");
+  const file = e.dataTransfer.files[0];
+  if(file) await ingestResumeFile(file);
 });
 
 document.getElementById("backupFile").addEventListener("change", async e=>{
@@ -1380,44 +1703,20 @@ ${src.map(x=>"- "+x).join("\n")}`);
   if(b.id==="resetCancel"){ S.confirmReset=false; render(); return; }
   if(b.id==="resetExport"){ exportBackup(); return; }   /* stays open — the export is optional, not a gate */
   if(b.id==="resetGo"){     resetEverything(); render(); return; }
-  if(b.id==="doImport"){ document.getElementById("backupFile").click(); return; }
+  if(b.id==="doRestore"){ document.getElementById("backupFile").click(); return; }
 
   /* ---- import ---- */
+  if(b.id==="pickResume"){ document.getElementById("resumeFile").click(); return; }
   if(b.id==="doImport"){
-    const txt=document.getElementById("importText").value.trim();
-    if(!txt){ S.error="Paste something first."; render(); return; }
+    const txt=(S.importDraft||"").trim();
+    if(!txt){ S.error="Paste something first, or upload a .docx."; render(); return; }
+    if(!confirmImportAppend()) return;
     await run("Reading it…", async ()=>{
-      const out = await askJSON(
-`Extract structured resume data from the text below. Use only what is written there — do not add, guess, or embellish anything.
-${RULES}
-
-Shape:
-{"contact":{"name":"","title":"","email":"","phone":"","location":"","links":""},
- "summary":"",
- "experience":[{"role":"","company":"","start":"MM/YYYY","end":"MM/YYYY or Present","location":"","bullets":["",""]}],
- "education":["School | Degree | Year"],
- "skills":["Category: a, b, c"],
- "projects":["Name | description | link"]}
-
-TEXT:
-${txt}`);
-      S.profile.contact={...S.profile.contact,...(out.contact||{})};
-      if(out.summary) ensureSection("Summary","text").text = out.summary;
-      if((out.experience||[]).length){
-        const target = entrySections()[0] || ensureSection("Experience","entries");
-        (out.experience||[]).forEach(r=>target.entries.push({
-          ...blankEntry(), role:r.role||"", company:r.company||"", start:r.start||"", end:r.end||"",
-          location:r.location||"", bullets:(r.bullets||[]).join("\n")
-        }));
-      }
-      if((out.education||[]).length) ensureSection("Education","lines","pipe").raw   = out.education.join("\n");
-      if((out.skills||[]).length)    ensureSection("Skills","lines","plain").raw     = out.skills.join("\n");
-      if((out.projects||[]).length)  ensureSection("Projects","lines","bullet").raw  = out.projects.join("\n");
-      save();
+      const roles = await importResumeText(txt);
+      flash(roles ? `Imported ${roles} role${roles===1?"":"s"}` : "Imported");
     });
     return;
   }
-
   /* ---- gap questions ---- */
   if(b.id==="doGaps"){
     await run("Looking for the holes…", async ()=>{
@@ -1537,10 +1836,16 @@ ${jd}`);
 });
 
 /* Section reorder by drag. The ↑/↓ buttons do the same job for keyboards, so
-   this stays a convenience rather than the only way through. */
-let dragSectionId = null;
-const toolsEl = document.getElementById("tools");
+   this stays a convenience rather than the only way through.
 
+   draggable only arms while the grip is held — a draggable card would hijack
+   mouse clicks and text selection inside every input/textarea it contains. */
+toolsEl.addEventListener("mousedown", e=>{
+  const grip = e.target.closest(".grip");
+  if(!grip) return;
+  const card = grip.closest("[data-drag]");
+  if(card) card.draggable = true;
+});
 toolsEl.addEventListener("dragstart", e=>{
   if(e.target.closest("input,textarea,select,button")){ e.preventDefault(); return; }
   const card = e.target.closest("[data-drag]");
@@ -1551,8 +1856,11 @@ toolsEl.addEventListener("dragstart", e=>{
 });
 toolsEl.addEventListener("dragend", e=>{
   const card = e.target.closest("[data-drag]");
-  if(card) card.classList.remove("dragging");
+  if(card){ card.classList.remove("dragging"); card.draggable = false; }
   dragSectionId = null;
+});
+window.addEventListener("mouseup", ()=>{
+  toolsEl.querySelectorAll("[data-drag][draggable=true]").forEach(c=>c.draggable=false);
 });
 toolsEl.addEventListener("dragover", e=>{
   if(!dragSectionId) return;
