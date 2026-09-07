@@ -29,7 +29,11 @@ echo 'GEMINI_API_KEY=...' > .env   # get a free key: https://aistudio.google.com
 node proxy.mjs
 ```
 
-Then open `index.html` in a browser.
+Then open `app.html` in a browser.
+
+Hosted at **[resumebench.developedbylukeo.com](https://resumebench.developedbylukeo.com)** —
+the editor, templates, ATS score and PDF export all work there with no key and no
+sign-up. The AI actions need your own key and the proxy running locally, as below.
 
 ## Bring your own key
 
@@ -42,7 +46,7 @@ else — no logging, no rewriting, no third-party calls.
 Runs on Gemini's free tier: no bill, no credit balance.
 
 Swapping providers means editing `UPSTREAM`/`AUTH_HEADER` in `proxy.mjs` and
-`ask()`/`readText()` in `index.html` — the proxy speaks whatever shape
+`ask()`/`readText()` in `app.html` — the proxy speaks whatever shape
 you point it at.
 
 ### Works without a key too

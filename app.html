@@ -53,6 +53,7 @@
     font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
     background:var(--paper);border:1.5px solid var(--ink);padding:8px 13px;cursor:pointer;border-radius:3px;
   }
+  a.btn{display:inline-block;text-decoration:none;color:var(--ink)}
   .btn:hover{background:var(--mark)}
   .btn:active{transform:translateY(1px)}
   .btn.solid{background:var(--ink);color:#fff}
@@ -303,6 +304,7 @@
     </nav>
     <div class="right">
       <span class="saved" id="saved"></span>
+      <a class="btn ghost sm" href="index.html">About</a>
       <button class="btn ghost sm stack" id="flip">View resume</button>
       <button class="btn ghost sm" id="copyTxt">Copy plain text</button>
       <button class="btn solid sm" id="print">Save as PDF</button>
@@ -666,6 +668,13 @@ const RULES = `Hard rules:
 const API_ENDPOINT = "http://localhost:8787/v1beta/interactions";
 const MODEL = "gemini-3.6-flash";
 
+/* Someone who opened the hosted copy has never seen the repo, so "run node
+   proxy.mjs" means nothing to them. Name what still works before what doesn't. */
+const RUNNING_LOCALLY = ["localhost","127.0.0.1",""].includes(location.hostname);
+const proxyMissingMessage = () => RUNNING_LOCALLY
+  ? "Can't reach the local proxy. Start it with: node proxy.mjs"
+  : "The AI actions need your own Gemini key, running on your machine. Everything else here works without one — editing, templates, the score, and Save as PDF. Setup takes a minute: see the About page.";
+
 /* The free tier's limits are per-account and unpublished, so pace by reacting
    to 429s rather than guessing an interval. A tailor run fires one call per
    role back to back, which is where a limit gets hit. */
@@ -724,7 +733,7 @@ async function ask(prompt, {json=false}={}){
       res = await fetch(API_ENDPOINT,{ method:"POST", headers:{"Content-Type":"application/json"}, body });
     }catch(e){
       console.error("resumebench: proxy unreachable", e);
-      throw new Error("Can't reach the local proxy. Start it with: node proxy.mjs");
+      throw new Error(proxyMissingMessage());
     }
     if(res.ok) return readText(await res.json());
 

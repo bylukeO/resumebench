@@ -1,0 +1,393 @@
+<meta charset="UTF-8">
+<title>resumebench — one master profile, a tailored resume for every posting</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Keep everything you have ever done in one profile, then write a version aimed at the job in front of you. ATS-parseable, nothing invented, runs in your browser.">
+<meta property="og:title" content="resumebench">
+<meta property="og:description" content="One master profile. A tailored resume for every posting. ATS-parseable, nothing invented, free to use.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://resumebench.developedbylukeo.com">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Crect%20width%3D%2732%27%20height%3D%2732%27%20rx%3D%272.5%27%20fill%3D%27%23141C25%27%2F%3E%3Cpath%20d%3D%27M2.5%2013.1L29.5%2011.1V18.5L2.5%2020.5Z%27%20fill%3D%27%23FFD84D%27%2F%3E%3Cg%20fill%3D%27%23fff%27%3E%3Crect%20x%3D%276%27%20y%3D%277%27%20width%3D%2718%27%20height%3D%274%27%20rx%3D%272%27%2F%3E%3Crect%20x%3D%276%27%20y%3D%2714%27%20width%3D%2720%27%20height%3D%274%27%20rx%3D%272%27%2F%3E%3Crect%20x%3D%276%27%20y%3D%2721%27%20width%3D%2714%27%20height%3D%274%27%20rx%3D%272%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#141C25; --ink-2:#4C5C6B; --ink-3:#8A98A5;
+    --mat:#D7DEE4; --mat-line:#CAD3DA; --panel:#F1F5F7; --paper:#fff;
+    --mark:#FFD84D; --gap:#BE443A; --ok:#2E6B58; --edge:#B4C0CA;
+    --display:'Space Grotesk',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+    --doc:Georgia,'Times New Roman',serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;font-family:var(--display);color:var(--ink);background:var(--mat);
+    background-image:linear-gradient(var(--mat-line) 1px,transparent 1px),linear-gradient(90deg,var(--mat-line) 1px,transparent 1px);
+    background-size:28px 28px;
+    -webkit-font-smoothing:antialiased;line-height:1.5;
+  }
+  ::selection{background:var(--mark)}
+  a{color:inherit}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+    text-transform:uppercase;text-decoration:none;color:var(--ink);
+    background:var(--paper);border:1.5px solid var(--ink);padding:10px 16px;border-radius:3px;
+  }
+  .btn:hover{background:var(--mark)}
+  .btn.solid{background:var(--ink);color:#fff}
+  .btn.solid:hover{background:#000}
+  .btn.ghost{border-color:var(--edge);color:var(--ink-2);background:transparent}
+  .btn.ghost:hover{background:var(--panel);color:var(--ink)}
+  .btn:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+  /* ---------- header ---------- */
+  .bar{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:12px 22px;border-bottom:2px solid var(--ink);background:var(--panel);
+  }
+  .bar .wrap{display:flex;align-items:center;gap:14px;width:100%;padding:0}
+  .brand{display:flex;align-items:center;gap:9px;margin-right:auto}
+  .brand svg{width:22px;height:22px;flex:none;display:block}
+  .wordmark{font-weight:700;font-size:15px;letter-spacing:-.02em;white-space:nowrap}
+  .wordmark em{font-style:normal;background:var(--mark);padding:0 5px}
+
+  /* ---------- highlighter: the one loud thing, same gesture as the app ---------- */
+  .hl{
+    background:linear-gradient(100deg,rgba(255,216,77,0) 0%,rgba(255,216,77,.9) 3.5%,rgba(255,216,77,.72) 96.5%,rgba(255,216,77,0) 100%);
+    background-repeat:no-repeat;padding:0 .12em;border-radius:.18em;
+    -webkit-box-decoration-break:clone;box-decoration-break:clone;
+    animation:swipe .5s cubic-bezier(.2,.7,.3,1) both;
+  }
+  @keyframes swipe{from{background-size:0 100%}to{background-size:100% 100%}}
+  .hl.d1{animation-delay:.35s}
+  .hl.d2{animation-delay:.95s}
+  .hl.d3{animation-delay:1.2s}
+
+  /* ---------- hero ---------- */
+  /* Horizontal padding repeats .wrap's on purpose: same specificity, later in
+     the sheet, so a shorthand here would silently cancel it. */
+  .hero{padding:66px 22px 54px}
+  .hero .cols{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  h1{
+    font-size:clamp(30px,4.6vw,50px);line-height:1.08;letter-spacing:-.03em;
+    font-weight:700;margin:0 0 20px;max-width:16ch;text-wrap:balance;
+  }
+  /* The swipe is one gesture — letting it break across lines renders it as two
+     ragged halves, which reads as a bug rather than a highlighter. */
+  h1 .hl{white-space:nowrap}
+  .lede{font-size:17px;color:var(--ink-2);margin:0 0 26px;max-width:52ch}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .free{
+    font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:16px;
+    display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  }
+  .free b{color:var(--ink);font-weight:500}
+
+  /* ---------- the miniature document ---------- */
+  /* Real markup rather than a screenshot: always sharp, never goes stale, and
+     it is the same selectable text the app actually renders. */
+  .mini{
+    background:var(--paper);border:1px solid var(--edge);border-radius:2px;
+    box-shadow:0 1px 0 var(--edge);padding:30px 32px 34px;font-family:var(--doc);
+    color:#111;font-size:11.5px;line-height:1.45;transform:rotate(-.5deg);
+  }
+  .mini h2{font-size:19px;margin:0 0 2px;letter-spacing:.01em;font-weight:700;font-family:var(--doc)}
+  .mini .who{font-size:11px;color:#3a3a3a;margin-bottom:3px}
+  .mini .contact{font-size:10px;color:#444;margin-bottom:15px}
+  .mini h3{
+    font-size:10px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 5px;
+    padding-bottom:2px;border-bottom:1px solid #CFCFCF;font-weight:700;font-family:var(--doc);
+  }
+  .mini .l1{display:flex;justify-content:space-between;gap:10px;font-weight:700}
+  .mini .l2{display:flex;justify-content:space-between;gap:10px;color:#444;font-size:10.5px;margin-bottom:3px}
+  .mini ul{margin:0;padding-left:15px}
+  .mini li{margin-bottom:2px}
+
+  /* ---------- sections ---------- */
+  section{padding:56px 0;border-top:1.5px solid var(--edge)}
+  h2.sec{font-size:clamp(23px,3vw,32px);letter-spacing:-.02em;margin:0 0 10px;font-weight:700}
+  .sub{color:var(--ink-2);max-width:62ch;margin:0 0 30px;font-size:15.5px}
+
+  /* steps: a real sequence, so it earns its numbering */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;counter-reset:s}
+  .step{border-top:2px solid var(--ink);padding-top:13px}
+  .step::before{
+    counter-increment:s;content:counter(s,decimal-leading-zero);
+    font-family:var(--mono);font-size:11px;color:var(--ink-3);display:block;margin-bottom:7px;
+  }
+  .step h3{margin:0 0 5px;font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .step p{margin:0;font-size:14px;color:var(--ink-2)}
+
+  /* spec sheet: a datasheet, not a card kit — fits the drafting-mat language */
+  .spec{border:1.5px solid var(--edge);border-radius:4px;background:var(--panel);overflow:hidden}
+  .spec .row{display:grid;grid-template-columns:230px 1fr;gap:24px;padding:16px 18px;border-top:1px solid var(--edge)}
+  .spec .row:first-child{border-top:none}
+  .spec dt{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink);margin:0}
+  .spec dd{margin:0;font-size:14.5px;color:var(--ink-2)}
+  .spec dd b{color:var(--ink);font-weight:500}
+
+  /* the honest split */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .box{border:1.5px solid var(--ink);border-radius:4px;background:var(--paper);padding:20px 22px 24px}
+  .box.byok{border-color:var(--edge);background:var(--panel)}
+  .box h3{margin:0 0 4px;font-size:17px;letter-spacing:-.01em}
+  .box .tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);display:block;margin-bottom:12px}
+  .box ul{margin:0;padding-left:18px;font-size:14.5px;color:var(--ink-2)}
+  .box li{margin-bottom:5px}
+  pre{
+    background:var(--ink);color:#E8EEF2;font-family:var(--mono);font-size:11.5px;line-height:1.75;
+    padding:13px 15px;border-radius:3px;overflow-x:auto;margin:14px 0 0;
+  }
+  pre .c{color:var(--ink-3)}
+
+  /* ---------- about ---------- */
+  .about{display:grid;grid-template-columns:1fr 300px;gap:44px;align-items:start}
+  .about p{font-size:15.5px;color:var(--ink-2);max-width:60ch}
+  .about p strong{color:var(--ink);font-weight:500}
+  .work{list-style:none;margin:22px 0 0;padding:0}
+  .work li{padding:12px 0;border-top:1px solid var(--edge);font-size:14.5px;color:var(--ink-2)}
+  .work b{color:var(--ink);font-weight:700;font-size:15px}
+  .work .role{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+  .card{border:1.5px solid var(--ink);border-radius:4px;background:var(--paper);padding:20px;position:sticky;top:22px}
+  .card h3{margin:0 0 3px;font-size:17px}
+  .card .avail{font-size:13.5px;color:var(--ink-2);margin:0 0 15px}
+  .links{display:flex;flex-direction:column;gap:8px}
+  .links a{
+    font-family:var(--mono);font-size:11.5px;text-decoration:none;color:var(--ink);
+    border-bottom:1px solid var(--edge);padding-bottom:7px;word-break:break-all;
+  }
+  .links a:last-child{border-bottom:none;padding-bottom:0}
+  .links a:hover{background:var(--mark)}
+
+  footer{border-top:2px solid var(--ink);background:var(--panel);padding:26px 0;font-size:13px;color:var(--ink-2)}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer a{color:var(--ink)}
+
+  @media (max-width:860px){
+    .hero .cols,.about{grid-template-columns:1fr;gap:34px}
+    .steps,.split{grid-template-columns:1fr}
+    .spec .row{grid-template-columns:1fr;gap:5px}
+    .card{position:static}
+    .mini{transform:none}
+    h1{max-width:none}
+  }
+</style>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <rect width="32" height="32" rx="2.5" fill="var(--ink)"/>
+        <path d="M2.5 13.1L29.5 11.1V18.5L2.5 20.5Z" fill="var(--mark)"/>
+        <g fill="var(--paper)">
+          <rect x="6" y="7"  width="18" height="4" rx="2"/>
+          <rect x="6" y="14" width="20" height="4" rx="2"/>
+          <rect x="6" y="21" width="14" height="4" rx="2"/>
+        </g>
+      </svg>
+      <div class="wordmark">resume<em>bench</em></div>
+    </div>
+    <a class="btn ghost" href="https://github.com/bylukeO/resumebench">Source</a>
+    <a class="btn solid" href="app.html">Open the bench</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div class="cols">
+      <div>
+        <h1>One master profile. A <span class="hl d1">tailored resume</span> for every posting.</h1>
+        <p class="lede">
+          Keep everything you have ever done in one place, then write a version aimed at the
+          job in front of you — without inventing a single thing you would have to defend
+          in the interview.
+        </p>
+        <div class="actions">
+          <a class="btn solid" href="app.html">Open the bench</a>
+          <a class="btn ghost" href="#how">How it works</a>
+        </div>
+        <p class="free"><b>Free, no sign-up.</b> Your resume stays in your browser.</p>
+      </div>
+
+      <div class="mini" aria-hidden="true">
+        <h2>Ada Okonkwo</h2>
+        <div class="who">Backend Engineer</div>
+        <div class="contact">ada@example.com &nbsp;|&nbsp; Lagos, NG &nbsp;|&nbsp; github.com/ada</div>
+        <h3>Experience</h3>
+        <div class="l1"><span>Backend Engineer</span><span>03/2023 – Present</span></div>
+        <div class="l2"><span>Northwind Systems</span><span>Remote</span></div>
+        <ul>
+          <li>Cut checkout <span class="hl d2">latency</span> by 40% by batching inventory reads.</li>
+          <li>Migrated billing to <span class="hl d3">PostgreSQL</span> with zero downtime.</li>
+          <li>Wrote the on-call runbook the team still uses.</li>
+        </ul>
+        <h3>Skills</h3>
+        <div>Go, Python, PostgreSQL, Redis, Docker, AWS</div>
+      </div>
+    </div>
+  </div>
+
+  <section id="how">
+    <div class="wrap">
+      <h2 class="sec">Every resume is a projection</h2>
+      <p class="sub">
+        The master profile is the only source of truth. Tailoring lays an overlay on top of it
+        and never rewrites it, so nothing you have written can be lost by a bad run.
+      </p>
+      <div class="steps">
+        <div class="step">
+          <h3>Build the master</h3>
+          <p>Upload a .docx or paste an old resume. It comes back structured — roles, bullets, skills — and everything you add later lives here.</p>
+        </div>
+        <div class="step">
+          <h3>Paste the posting</h3>
+          <p>Keywords from the job get matched against what you have. Hits are highlighted, gaps are underlined, and bullets are rewritten to face the role.</p>
+        </div>
+        <div class="step">
+          <h3>Save the version</h3>
+          <p>Each saved version stores only what made it different. Fix a typo in your profile and every version you have ever saved is corrected with it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 class="sec">What it is underneath</h2>
+      <p class="sub">
+        The whole application is one HTML file with no framework, no build step and nothing
+        to install. The decisions that shape it are worth stating plainly.
+      </p>
+      <dl class="spec">
+        <div class="row">
+          <dt>Zero dependencies</dt>
+          <dd>No framework, no bundler, no <b>npm install</b>. One HTML file, plus a small Node relay that exists only to keep an API key out of the page.</dd>
+        </div>
+        <div class="row">
+          <dt>.docx read in the browser</dt>
+          <dd>A .docx is a ZIP holding XML, and the platform can already inflate it, so the file is parsed with <b>no library and no upload</b>. It never leaves your machine — only the extracted text is ever sent to a model.</dd>
+        </div>
+        <div class="row">
+          <dt>ATS safety in the renderer</dt>
+          <dd>Real headings, real lists, real selectable text, one column — guaranteed <b>in code, not in the prompt</b>. A model that misbehaves cannot produce a document a parser chokes on.</dd>
+        </div>
+        <div class="row">
+          <dt>The score runs locally</dt>
+          <dd>Contact, structure, content and ATS checks recalculate on <b>every keystroke with no API call</b>, and each finding names the thing to change. Instant feedback is what makes it get used.</dd>
+        </div>
+        <div class="row">
+          <dt>Nothing invented</dt>
+          <dd>Every generative prompt is prefixed with a rule forbidding invented metrics, titles, dates and tools. <b>A resume you cannot defend is worse than an untailored one.</b></dd>
+        </div>
+        <div class="row">
+          <dt>Your data stays put</dt>
+          <dd>Everything lives in your browser's storage. There is no account and no server to lose it to — export a JSON backup whenever you want one.</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="try">
+    <div class="wrap">
+      <h2 class="sec">Most of it needs no key at all</h2>
+      <p class="sub">
+        The editor, the templates, the score and the PDF export all run in the page. Only the
+        model-backed actions need credentials, and those are yours — there is no shared backend,
+        and no key ever enters the page.
+      </p>
+      <div class="split">
+        <div class="box">
+          <h3>Open it and go</h3>
+          <span class="tag">No key, no sign-up</span>
+          <ul>
+            <li>Write and edit your whole profile</li>
+            <li>Reorder sections, switch templates and density</li>
+            <li>The live ATS score, with fixes that name the change</li>
+            <li>Save as PDF, or copy as plain text</li>
+            <li>Export and restore a JSON backup</li>
+          </ul>
+        </div>
+        <div class="box byok">
+          <h3>Bring your own key</h3>
+          <span class="tag">Runs on your machine</span>
+          <ul>
+            <li>Turn an uploaded .docx into a structured profile</li>
+            <li>Ask what is missing from a role</li>
+            <li>Rewrite bullets, and tailor to a posting</li>
+          </ul>
+          <pre><span class="c"># Gemini's free tier is enough</span>
+git clone https://github.com/bylukeO/resumebench.git
+cd resumebench
+echo 'GEMINI_API_KEY=...' &gt; .env
+node proxy.mjs</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="wrap">
+      <h2 class="sec">Who built it</h2>
+      <div class="about">
+        <div>
+          <p>
+            I'm <strong>Luke Oladejo</strong>, a full-stack developer. I built resumebench because
+            tailoring a resume by hand for every application is slow and easy to get wrong, and the
+            tools that automate it tend to either want a subscription or quietly invent things you
+            then have to explain in an interview.
+          </p>
+          <p>
+            So the rule it is built around is that the model may <strong>rephrase what you have
+            written and nothing else</strong>. The parts that have to be trustworthy — the document
+            structure, the ATS checks, the master profile — are plain code that a model never touches.
+          </p>
+          <ul class="work">
+            <li>
+              <b>PortfolioSync</b> <span class="role">— CTO</span><br>
+              Syncs developer portfolios by opening pull requests against your own repo. GitHub OAuth,
+              JWT sessions, encrypted tokens; React 19 and Vite over Node, Express and SQLite.
+            </li>
+            <li>
+              <b>GIREAPP</b> <span class="role">— Backend</span><br>
+              An EdTech API in Express and TypeScript. JWT over HTTP-only cookies, full verification
+              and reset flows, shared Zod schemas, ten entities modelled in PostgreSQL through Prisma.
+            </li>
+            <li>
+              <b>Agrilink</b> <span class="role">— Frontend lead, 2nd place</span><br>
+              A two-sided marketplace for Nigerian farmers and buyers, built with a team of four at the
+              INVENTORS COMMUNITY hackathon. React and TypeScript against NestJS, with Socket.IO chat.
+            </li>
+            <li>
+              <b>The Peoples Hub</b> <span class="role">— Solo</span><br>
+              A polling application on Django REST and MySQL, with a React front end. Deployed.
+            </li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>Open to work</h3>
+          <p class="avail">Full-time, contract or freelance — any timezone.</p>
+          <div class="links">
+            <a href="mailto:lo@developedbylukeo.com">lo@developedbylukeo.com</a>
+            <a href="https://developedbylukeo.com">developedbylukeo.com</a>
+            <a href="https://github.com/bylukeO">github.com/bylukeO</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Built by <a href="https://developedbylukeo.com">Luke Oladejo</a>, released under AGPL-3.0</span>
+    <span><a href="https://github.com/bylukeO/resumebench">Source on GitHub</a></span>
+  </div>
+</footer>
