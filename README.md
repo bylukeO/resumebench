@@ -29,7 +29,7 @@ echo 'GEMINI_API_KEY=...' > .env   # get a free key: https://aistudio.google.com
 node proxy.mjs
 ```
 
-Then open `resume-bench.html` in a browser.
+Then open `index.html` in a browser.
 
 ## Bring your own key
 
@@ -42,7 +42,7 @@ else — no logging, no rewriting, no third-party calls.
 Runs on Gemini's free tier: no bill, no credit balance.
 
 Swapping providers means editing `UPSTREAM`/`AUTH_HEADER` in `proxy.mjs` and
-`ask()`/`readText()` in `resume-bench.html` — the proxy speaks whatever shape
+`ask()`/`readText()` in `index.html` — the proxy speaks whatever shape
 you point it at.
 
 ### Works without a key too
